@@ -1,0 +1,58 @@
+# The tab journey on iOS and Android: switch to Profile, read the sample profile, come back, and
+# confirm the count survived the switch.
+#
+# Run:  maestro test -e APP_ID=<your.bundle.id> .maestro/profile.yaml
+#
+# This is deliberately NOT in .maestro/smoke-launch.yaml. That flow runs in both `test_android`
+# and `test_ios` in .eas/workflows/e2e.yml and is the team's only native coverage, so it stays the
+# cheapest thing that catches a dead launch. The journey lives here instead.
+#
+# Note the two matcher styles, and why they differ:
+#   - `counter-value` carries accessibilityLabel={`Count: ${count}`}, and on iOS that label
+#     REPLACES the name derived from children — so it is asserted as "Count: 2", not "2".
+#   - `profile-name` and the row values carry no accessibilityLabel, so their own text matches.
+# Getting this wrong passes on Android and fails on iOS. See the counter flow's header.
+#
+# NOT YET RUN on a device from this repo: Maestro is not installed here and Windows has no iOS
+# simulator. e2e/web/profile.spec.ts covers the same journey on web against the same ids.
+
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: true
+
+- assertVisible:
+    id: "counter-screen"
+
+# Count to two, so the tab switch has something to preserve.
+- tapOn:
+    id: "counter-increase"
+- tapOn:
+    id: "counter-increase"
+- assertVisible:
+    id: "counter-value"
+    text: "Count: 2"
+
+- tapOn:
+    id: "tab-profile"
+- assertVisible:
+    id: "profile-screen"
+
+# The page says it is a sample rather than a real person's record.
+- assertVisible: "Sample profile"
+- assertVisible:
+    id: "profile-name"
+    text: "Alex Jordan"
+- assertVisible:
+    id: "profile-row-value-plan"
+    text: "Standard"
+
+- tapOn:
+    id: "tab-counter"
+- assertVisible:
+    id: "counter-screen"
+
+# A tab switch is not a relaunch.
+- assertVisible:
+    id: "counter-value"
+    text: "Count: 2"

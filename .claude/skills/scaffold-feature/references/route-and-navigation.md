@@ -59,10 +59,23 @@ export default function TabLayout() {
 `testID` of its own, so without it the flow has to select by visible copy and breaks on the
 next wording change. Add it with the tab, not from a test branch later.
 
-This app has **no tab group yet** — it is a single route, so there is no `(tabs)/_layout.tsx` here
-to copy. `src/app/_layout.tsx` is the working example of a root layout: a `Stack`, with the
-providers and theme that have to persist across navigation. The `Tabs` snippet above is the shape
-to follow when the first tab is added.
+`src/app/(tabs)/_layout.tsx` in this repo is a working example, with Counter and Profile.
+`src/app/_layout.tsx` is the root layout above it: a `Stack` holding the providers and theme that
+have to persist across navigation.
+
+Two things that example carries which the snippet above does not, both learned by observing the
+running app:
+
+- **`tabBarIcon: () => null`.** With no icon set installed, react-navigation draws its "missing
+  icon" placeholder — a 25px triangle above every label. A label-only tab bar needs this to look
+  deliberate rather than broken.
+- **The bar is themed explicitly** from `background` / `border` / `tint` / `textMuted`.
+  react-navigation ships its own default palette, so an unthemed bar stays light under a dark
+  screen — and that is invisible to whoever built it in light mode.
+
+One more, for the browser tab text: `Tabs.Screen`'s `title` option sets the tab label but left
+`document.title` empty on web. The routes use `Head` from `expo-router/head` instead, which is
+focus-aware and therefore correct with tabs.
 
 **Adding a tab is two edits**: create `app/(tabs)/<slug>.tsx`, then add its `<Tabs.Screen name="<slug>" />`
 to the layout. Skip the second and the file becomes a route the tab bar never shows.

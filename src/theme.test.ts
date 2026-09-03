@@ -26,6 +26,9 @@ const REQUIRED: { name: string; on: keyof Palette; of: keyof Palette; min: numbe
   { name: "body text", of: "text", on: "background", min: 4.5 },
   { name: "muted text", of: "textMuted", on: "background", min: 4.5 },
   { name: "text on a surface", of: "text", on: "surface", min: 4.5 },
+  // Row labels inside the profile's details card. Added with the profile tab — a muted colour
+  // that clears 4.5:1 on `background` does not automatically clear it on `surface`.
+  { name: "muted text on a surface", of: "textMuted", on: "surface", min: 4.5 },
   { name: "primary button label", of: "tintText", on: "tint", min: 4.5 },
   { name: "control outline", of: "border", on: "background", min: 3 },
   { name: "accent", of: "tint", on: "background", min: 3 },

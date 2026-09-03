@@ -13,10 +13,15 @@
 # accessibilityIdentifier on iOS and resource-id on Android, so one prop serves this flow and
 # the Playwright one in e2e/web/.
 #
-# This flow previously asserted on `home-screen`, `tab-explore` and `explore-screen` from a
-# src/app/(tabs)/_layout.tsx that was never written, and claimed a web counterpart in e2e/web/
-# passed when that directory did not exist. It was rewritten onto the app that does exist: a
-# single counter route. The deeper counter journey lives in .maestro/counter.yaml.
+# History, because it explains the shape: this flow once asserted `home-screen`, `tab-explore` and
+# `explore-screen` from a src/app/(tabs)/_layout.tsx that had never been written, and claimed a web
+# counterpart in e2e/web/ passed when that directory did not exist. It was rewritten onto the
+# single counter route that did exist. A `(tabs)` group now genuinely exists, with Counter and
+# Profile — so the tab assertion below is real rather than aspirational.
+#
+# It stays a SMOKE test: one tab assertion, not a journey. This file runs in both `test_android`
+# and `test_ios`, so it is the team's only native coverage; the journeys live in
+# .maestro/counter.yaml and .maestro/profile.yaml.
 #
 # NOT YET RUN on a device from this repo — Maestro is not installed here and Windows has no iOS
 # simulator. e2e/web/counter.spec.ts passes against the same ids, which proves they resolve on
@@ -41,3 +46,7 @@ appId: ${APP_ID}
 - assertVisible:
     id: "counter-value"
     text: "Count: 1"
+
+# The second tab exists and is reachable. One assertion — the journey is in profile.yaml.
+- assertVisible:
+    id: "tab-profile"

@@ -20,15 +20,15 @@ export default function RootLayout() {
     <SafeAreaProvider>
       {/* Inverted against the background, so the clock stays legible in both modes. */}
       <StatusBar style={scheme === "dark" ? "light" : "dark"} />
+      {/* One child route, the `(tabs)` group. Per-screen titles — and so the browser tab text on
+          web — now belong to that group's layout, since there is no `index` route at this level
+          any more. */}
       <Stack
         screenOptions={{
           headerShown: false,
           contentStyle: { backgroundColor: theme.background },
         }}
-      >
-        {/* `title` still sets the browser tab text on web even with the header hidden. */}
-        <Stack.Screen name="index" options={{ title: "Counter" }} />
-      </Stack>
+      />
     </SafeAreaProvider>
   );
 }
