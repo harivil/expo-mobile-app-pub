@@ -69,6 +69,22 @@ test("starts over on reload — the count is not persisted", async ({ page }) =>
   await expect(page.getByTestId(id.counterValue)).toHaveText("0");
 });
 
+test("keeps the value visible on a short viewport", async ({ page }) => {
+  // Regression: with no scroll container the value's box was squeezed to zero height and the
+  // digit disappeared entirely at 390x300 — still live and still counting, just invisible. The
+  // tab bar took another 49px off the budget, so the onset arrived earlier than before.
+  await page.setViewportSize({ width: 390, height: 320 });
+  await waitUntilInteractive(page);
+
+  const value = page.getByTestId(id.counterValue);
+  await value.scrollIntoViewIfNeeded();
+  await expect(value).toBeVisible();
+
+  const box = await value.boundingBox();
+  expect(box).not.toBeNull();
+  expect(box?.height ?? 0).toBeGreaterThan(0);
+});
+
 test("keeps content in a centred column on a desktop viewport", async ({ page }) => {
   // The failure this catches: a phone layout stretched across a monitor. Only web can break
   // this, which is why it lives here rather than in a Maestro flow.

@@ -7,7 +7,9 @@ describe("Profile", () => {
   it("marks the page as a sample rather than real data", async () => {
     // The compliance-carrying assertion: nothing on this page should read as a real person.
     await render(<Profile />);
-    expect(screen.getByText(placeholderProfile.marker)).toBeTruthy();
+    expect(screen.getByTestId("profile-marker")).toHaveTextContent(
+      placeholderProfile.marker,
+    );
   });
 
   it("shows the placeholder name and handle", async () => {
@@ -18,7 +20,12 @@ describe("Profile", () => {
 
   it("shows the initials of the name in the avatar", async () => {
     await render(<Profile />);
-    expect(screen.getByTestId("profile-avatar")).toHaveTextContent("AJ");
+    // `includeHiddenElements` because the avatar is deliberately `aria-hidden`: it is the name
+    // rendered as glyphs, so announcing "A J" right before "Alex Jordan" is noise. It is still
+    // addressable by testID for the flows, which is what this asserts.
+    expect(
+      screen.getByTestId("profile-avatar", { includeHiddenElements: true }),
+    ).toHaveTextContent("AJ");
   });
 
   it("shows both account rows, label and value", async () => {
@@ -45,13 +52,15 @@ describe("Profile", () => {
     expect(screen.getByText("Sign-in isn't part of this app yet.")).toBeTruthy();
   });
 
-  it("does nothing when the disabled sign out is pressed", async () => {
+  it("leaves the page unchanged when the disabled sign out is pressed", async () => {
     await render(<Profile />);
 
-    // A control that silently does nothing would be worse than no control; this proves it is
-    // inert AND announced, rather than inert and looking live.
     await userEvent.press(screen.getByRole("button", { name: "Sign out" }));
 
-    expect(screen.getByRole("button", { name: "Sign out" })).toBeDisabled();
+    // Asserting on observable page state rather than re-asserting `toBeDisabled()`. The control
+    // is rendered with no `onPress` at all, so "fires nothing" is structural — what is worth
+    // checking is that pressing it neither throws nor navigates away from the profile.
+    expect(screen.getByTestId("profile-name")).toHaveTextContent("Alex Jordan");
+    expect(screen.getByText("Sign-in isn't part of this app yet.")).toBeTruthy();
   });
 });

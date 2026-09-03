@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { ContentMaxWidth } from "../../src/theme";
-import { id, openApp } from "./app";
+import { HYDRATION_BUDGET_MS, id, openApp } from "./app";
 
 // Owns every tab criterion in docs/specs/profile-tab.md. It has to: `expo-router` is stubbed to
 // `Tabs: () => null` under Jest, so tab switching, URLs and back behaviour are not testable at
@@ -63,8 +63,13 @@ test("loads /profile directly, with the tab bar and the counter still reachable"
   await expect(page.getByTestId(id.tabCounter)).toBeVisible();
   await expect(page).toHaveTitle("Profile");
 
-  await page.getByTestId(id.tabCounter).click();
-  await expect(page.getByTestId(id.counterScreen)).toBeVisible({ timeout: 30_000 });
+  // Retry the TAP rather than the assertion. This is the one test that cannot use `openApp`'s
+  // gate — `counter-increase` is not on /profile — and a tap before hydration is dropped
+  // silently, so `toBeVisible` would just wait out its timeout without ever re-tapping.
+  await expect(async () => {
+    await page.getByTestId(id.tabCounter).click({ timeout: 5_000 });
+    await expect(page.getByTestId(id.counterScreen)).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: HYDRATION_BUDGET_MS });
 });
 
 test("browser back from /profile returns to the counter", async ({ page }) => {
@@ -92,14 +97,15 @@ test("shows the sample profile, and says it is a sample", async ({ page }) => {
   await page.getByTestId(id.tabProfile).click();
   await expect(page.getByTestId(id.profileScreen)).toBeVisible();
 
-  // The compliance-carrying assertion: nothing here should read as a real person.
-  await expect(page.getByText("Sample profile")).toBeVisible();
+  // The compliance-carrying assertion: nothing here should read as a real person. Addressed by
+  // id so a wording change cannot quietly remove it.
+  await expect(page.getByTestId(id.profileMarker)).toHaveText("Sample profile");
 
   await expect(page.getByTestId(id.profileAvatar)).toHaveText("AJ");
   await expect(page.getByTestId(id.profileName)).toHaveText("Alex Jordan");
   await expect(page.getByTestId(id.profileHandle)).toHaveText("@alexjordan");
-  await expect(page.getByTestId("profile-row-value-member-since")).toHaveText("March 2026");
-  await expect(page.getByTestId("profile-row-value-plan")).toHaveText("Standard");
+  await expect(page.getByTestId(id.profileRowMemberSince)).toHaveText("March 2026");
+  await expect(page.getByTestId(id.profileRowPlan)).toHaveText("Standard");
 });
 
 test("sign out is disabled and says why", async ({ page }) => {
@@ -111,6 +117,22 @@ test("sign out is disabled and says why", async ({ page }) => {
     "aria-disabled",
     "true",
   );
+  await expect(page.getByText("Sign-in isn't part of this app yet.")).toBeVisible();
+});
+
+test("keeps the sign-out control reachable on a short viewport", async ({ page }) => {
+  // Regression: the profile used to sit in a plain flex view inside a tab view that is
+  // `overflow: hidden`, so on a landscape phone the sign-out control sat ~120px below the fold
+  // with NO scroll container anywhere in the document — unreachable by wheel, keyboard or drag.
+  await page.setViewportSize({ width: 844, height: 390 });
+  await openApp(page);
+
+  await page.getByTestId(id.tabProfile).click();
+  await expect(page.getByTestId(id.profileScreen)).toBeVisible();
+
+  const signOut = page.getByTestId(id.profileSignOut);
+  await signOut.scrollIntoViewIfNeeded();
+  await expect(signOut).toBeInViewport();
   await expect(page.getByText("Sign-in isn't part of this app yet.")).toBeVisible();
 });
 

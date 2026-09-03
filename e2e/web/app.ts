@@ -22,11 +22,14 @@ export const id = {
   reset: "counter-reset",
 
   profileScreen: "profile-screen",
+  profileMarker: "profile-marker",
   profileDetails: "profile-details",
   profileAvatar: "profile-avatar",
   profileName: "profile-name",
   profileHandle: "profile-handle",
   profileSignOut: "profile-signout",
+  profileRowMemberSince: "profile-row-value-member-since",
+  profileRowPlan: "profile-row-value-plan",
 } as const;
 
 /**

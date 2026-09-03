@@ -7,12 +7,17 @@ Spec: [`../specs/profile-tab.md`](../specs/profile-tab.md) · Intent:
 
 ```
 src/app/_layout.tsx                         (edit) drop the stale <Stack.Screen name="index">
-src/app/index.tsx                           (move) -> src/app/(tabs)/index.tsx, content unchanged
+src/app/index.tsx                           (move) -> src/app/(tabs)/index.tsx, plus a Head title
 src/app/(tabs)/_layout.tsx                  (new)  Tabs from expo-router/js-tabs, themed, both testIDs
 src/app/(tabs)/profile.tsx                  (new)  route, thin
 src/screens/profile/index.tsx               (new)  screen body
 src/screens/profile/index.test.tsx          (new)  functional: every pinned string, disabled sign out
 src/screens/profile/placeholder-profile.ts  (new)  the fictional data, in one obviously-named module
+src/screens/profile/placeholder-profile.test.ts (new) the initials helper, and the pinned copy
+src/components/screen.tsx                   (edit) a bottomInset prop — the tab bar owns that inset
+src/components/screen.test.tsx              (new)  covers both inset modes
+e2e/web/app.ts                              (new)  shared ids + the hydration gate, lifted from counter.spec
+e2e/web/counter.spec.ts                     (edit) imports the lifted helper; no assertion changed
 src/theme.test.ts                           (edit) add the textMuted-on-surface REQUIRED pair
 e2e/web/profile.spec.ts                     (new)  tabs, direct entry, back, column, aria-selected
 .maestro/profile.yaml                       (new)  the tab journey
@@ -81,6 +86,25 @@ font size. No loading, empty, error, offline or permission state exists to draw 
 async.
 
 **Both modes** get looked at, on the tab bar as well as the page.
+
+## Departures from this plan, written back
+
+Recorded here rather than discovered in review — `change-reviewer` judges the diff against this file.
+
+- **`e2e/web/app.ts` was extracted** when the profile flow needed the same hydration gate
+  `counter.spec.ts` already had. `id` and `waitUntilInteractive` moved verbatim; the budget, the
+  timeouts and every assertion are unchanged, and the id keys were renamed at every call site
+  (`id.value` → `id.counterValue` and so on). **No assertion was weakened, removed or retimed** —
+  the alternative was a second copy of the gate that would drift from the first.
+- **`src/components/screen.tsx` gained a `bottomInset` prop.** The plan assumed the double-inset
+  question would be settled by observation; it was settled by reading the vendored navigator
+  instead, which showed the tab bar's height already includes `insets.bottom` and that it pads
+  itself, while screens still see the full inset. So the fix is in `Screen` after all, opted into
+  per screen rather than auto-detected — `BottomTabBarHeightContext` is only reachable through an
+  internal `expo-router/build/...` path, which is not worth depending on.
+- **The profile body scrolls.** Nothing here scrolls in the plan; at a doubled system font size the
+  content is taller than the tab-bar-reduced screen area and the tab view clips it, taking the
+  Sign out control with it.
 
 ## Risks
 

@@ -38,8 +38,10 @@ appId: ${APP_ID}
 - assertVisible:
     id: "profile-screen"
 
-# The page says it is a sample rather than a real person's record.
-- assertVisible: "Sample profile"
+# The page says it is a sample rather than a real person's record. By id, not by copy.
+- assertVisible:
+    id: "profile-marker"
+    text: "Sample profile"
 - assertVisible:
     id: "profile-name"
     text: "Alex Jordan"

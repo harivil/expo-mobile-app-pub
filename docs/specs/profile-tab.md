@@ -102,15 +102,18 @@ plus a storage decision and the `.semgrep.yml` personal-data rules.
 - [ ] Tapping **Profile** shows the profile page; tapping **Counter** returns to the counter.
 - [ ] **The tab bar is themed in both palettes** per the token table above — bar background,
       hairline, and active/inactive labels. Specifically: no light-coloured bar under a dark screen.
-- [ ] **No content on either tab is obscured by, or double-inset from, the tab bar.** `Screen`
-      applies `paddingBottom: insets.bottom` and a tab bar consumes the bottom inset itself, so the
-      two can stack into dead space above the bar, or push a control underneath it.
-      **Observed clean on web** — 58px of clearance between the sign-out control and the bar at
-      390×844, nothing obscured — but **web cannot answer this criterion**: a desktop browser
-      reports a bottom safe-area inset of 0, so the two values that would stack never both exist
-      there. **This is a typed gap on iOS and Android**, where the inset is non-zero and is exactly
-      where the double-padding would show. No change was made to `Screen` on the strength of a web
-      observation that cannot see the problem.
+- [x] **No content on either tab is obscured by, or double-inset from, the tab bar.** **Fixed, and
+      no longer a typed gap.** This spec first recorded the double inset as unobservable from here.
+      It was answerable without a device by reading the vendored navigator: `getTabBarHeight`
+      returns `49 + insets.bottom`, `BottomTabBar` also applies `paddingBottom: insets.bottom`, and
+      `BottomTabView` hands screens no reduced inset — so `Screen` padding by `insets.bottom` as
+      well put ~34px of dead space under every screen on an iPhone. `Screen` now takes a
+      `bottomInset` prop defaulting to `false`, tested in both modes against a device-like inset.
+- [x] **Content is reachable at every viewport, not clipped.** Found on web by `verifier`: the
+      profile's sign-out control sat ~120px below the fold on a landscape phone, and the counter's
+      numeral was squeezed to **zero height and vanished** at 390×300 while still counting — with
+      **no scroll container anywhere in the document**, so neither was reachable by wheel, keyboard
+      or drag. `Screen` now scrolls. Regression-tested at 844×390 and 390×320.
 - [ ] The browser tab title reads **Counter** at `/` and **Profile** at `/profile`. The root
       layout's existing `<Stack.Screen name="index">` becomes stale when `index` moves into the
       group, so this must be moved deliberately rather than left to fall back to the app name.
@@ -161,7 +164,11 @@ plus a storage decision and the `.semgrep.yml` personal-data rules.
 - [ ] Every control is at least 44×44.
 - [ ] **On web**, each tab exposes its accessible name and its selected state (`aria-selected`), and
       the page holds up when the browser font size is doubled — labels and values may wrap, nothing
-      clipped. **On iOS and Android this is a typed gap**: no screen reader and no OS font-scale
+      clipped. **One exception, accepted:** at 200% page zoom on a 390px-wide phone (a 195px CSS
+      viewport) the `Counter` tab label ellipsises to `Cou…`. It degrades with an ellipsis rather
+      than a mid-glyph cut, `Profile` is short enough to survive, and the threshold is ≤200px CSS
+      width — narrower than any real device at 100%. Not worth shortening the label or adding a
+      second line for. **On iOS and Android this is a typed gap**: no screen reader and no OS font-scale
       setting can be driven from this machine, so native announcement and native Dynamic Type are
       unobserved rather than claimed. This mirrors how `counter-screen.md` scoped the same pair.
 
@@ -214,6 +221,23 @@ wrong again. A fourth is created by that same correction:
   explaining that it once asserted tab ids "from a `src/app/(tabs)/_layout.tsx` that was never
   written" stops being true the moment that file exists. Both the steps and that paragraph are
   updated.
+
+## Findings accepted rather than fixed
+
+- **Keyboard focus reaches the inactive tab's controls.** Found by `verifier`: on `/profile`,
+  pressing Tab reaches `counter-increase` / `counter-decrease` / `counter-reset` — they carry
+  `tabindex="0"` under an ancestor marked `aria-hidden="true"` — and three Enter presses drove the
+  count from 0 to 3 while the profile stayed on screen.
+  **Accepted, with the trade-off stated:** react-navigation keeps inactive tab screens mounted (it
+  hides them from the accessibility tree but leaves them in the tab order), and the obvious fix —
+  unmounting or detaching inactive screens — would **break the count-survives-a-tab-switch
+  criterion** the originator's spec requires. Screen readers are unaffected: the ARIA tree for
+  `/profile` contains only profile content and the tablist. So this is keyboard-only, it is a
+  property of the navigator rather than of this app's code, and fixing it properly means changing
+  navigator behaviour rather than a screen. Worth revisiting if a real form ever lands on a tab.
+- **The `Sample profile` marker cannot be reached by a user in its "long name" state**, because the
+  data is a module constant — so that row of the States table is unreachable by design rather than
+  untested.
 
 ## Concerns to name rather than bury
 

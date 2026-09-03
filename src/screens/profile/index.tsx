@@ -26,7 +26,10 @@ export function Profile() {
   return (
     <Screen testID="profile-screen">
       <View style={styles.header}>
-        <ThemedText variant="caption" tone="muted">
+        {/* Carries the "nothing here is real data" claim, so it gets an id of its own rather
+            than being selected by copy, and `label` rather than `caption` so it is not the
+            faintest thing on a page full of plausible-looking details. */}
+        <ThemedText testID="profile-marker" variant="label" tone="muted">
           {placeholderProfile.marker}
         </ThemedText>
 
@@ -36,6 +39,9 @@ export function Profile() {
 
         <View
           testID="profile-avatar"
+          // Decorative: it is the name rendered as glyphs, and the name follows immediately.
+          // Without this a screen reader announces "A J" and then "Alex Jordan".
+          aria-hidden
           style={[styles.avatar, { backgroundColor: theme.tint }]}
         >
           <ThemedText variant="title" style={{ color: theme.tintText }}>
