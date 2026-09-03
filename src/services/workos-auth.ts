@@ -1,13 +1,34 @@
 import { WorkOS } from "@workos-inc/node";
 import * as SecureStore from "expo-secure-store";
 
-const WORKOS_CLIENT_ID = process.env.EXPO_PUBLIC_WORKOS_CLIENT_ID!;
 const PKCE_TTL_MS = 10 * 60 * 1000;
 
 export const REDIRECT_URI = "tenx-health://auth/callback";
 
 // Public client mode: no API key/secret bundled with the app.
-const workos = new WorkOS({ clientId: WORKOS_CLIENT_ID });
+//
+// Built on first use rather than at module load. The WorkOS constructor throws when the
+// client ID is missing, and this module is imported by the root layout — so constructing
+// it eagerly turned an unset env var into a crash before any UI could render, took down
+// server rendering for every web route (`web.output: "static"` renders them in Node), and
+// broke `tsc`-clean CI. Failing at the point of use keeps the app bootable and puts the
+// error where someone can act on it.
+let client: WorkOS | null = null;
+
+function workos(): WorkOS {
+  if (!client) {
+    // Read at call time, not at module scope: nothing is captured before the environment
+    // is known, which is what makes this testable and safe under server rendering.
+    const clientId = process.env.EXPO_PUBLIC_WORKOS_CLIENT_ID;
+    if (!clientId) {
+      throw new Error(
+        "EXPO_PUBLIC_WORKOS_CLIENT_ID is not set. Copy .env.example to .env.local and fill it in.",
+      );
+    }
+    client = new WorkOS({ clientId });
+  }
+  return client;
+}
 
 const KEYS = {
   SESSION: "workos_session",
@@ -51,7 +72,7 @@ interface PkceState {
 
 /** Build the AuthKit hosted sign-in URL and stash the PKCE verifier for the callback. */
 export async function getSignInUrl(): Promise<string> {
-  const { url, codeVerifier } = await workos.userManagement.getAuthorizationUrlWithPKCE({
+  const { url, codeVerifier } = await workos().userManagement.getAuthorizationUrlWithPKCE({
     redirectUri: REDIRECT_URI,
     provider: "authkit",
   });
@@ -75,7 +96,7 @@ export async function handleCallback(code: string): Promise<AuthUser> {
     throw new Error("Sign-in session expired — please try again");
   }
 
-  const auth = await workos.userManagement.authenticateWithCode({
+  const auth = await workos().userManagement.authenticateWithCode({
     code,
     codeVerifier: pkceState.codeVerifier,
   });
@@ -173,7 +194,7 @@ export async function getUser(): Promise<AuthUser | null> {
   }
 
   try {
-    const refreshed = await workos.userManagement.authenticateWithRefreshToken({
+    const refreshed = await workos().userManagement.authenticateWithRefreshToken({
       refreshToken: session.refreshToken,
     });
 

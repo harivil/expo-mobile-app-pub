@@ -14,6 +14,8 @@ type PrimaryButtonProps = {
   disabled?: boolean;
   loading?: boolean;
   accessibilityHint?: string;
+  /** Renders as data-testid on web, resource-id on Android, accessibilityIdentifier on iOS. */
+  testID?: string;
 };
 
 export function PrimaryButton({
@@ -22,11 +24,13 @@ export function PrimaryButton({
   disabled,
   loading,
   accessibilityHint,
+  testID,
 }: PrimaryButtonProps) {
   const isDisabled = disabled || loading;
 
   return (
     <Pressable
+      testID={testID}
       onPress={onPress}
       disabled={isDisabled}
       accessibilityRole="button"

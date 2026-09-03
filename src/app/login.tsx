@@ -24,7 +24,7 @@ export default function LoginScreen() {
   }
 
   return (
-    <ThemedView style={styles.container}>
+    <ThemedView style={styles.container} testID="login-screen">
       <SafeAreaView style={styles.safeArea}>
         <ThemedView style={styles.brandSection}>
           <ThemedText
@@ -51,6 +51,7 @@ export default function LoginScreen() {
 
           {error && (
             <ThemedText
+              testID="login-error"
               style={styles.errorText}
               accessibilityLiveRegion="polite"
               maxFontSizeMultiplier={2}
@@ -60,6 +61,7 @@ export default function LoginScreen() {
           )}
 
           <PrimaryButton
+            testID="login-submit"
             title="Login"
             onPress={handleLogin}
             loading={isSigningIn}

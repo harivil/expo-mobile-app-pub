@@ -86,6 +86,22 @@ function seedSession(exp: number, sid = "session_1") {
 beforeEach(() => {
   mockStore.clear();
   jest.clearAllMocks();
+  // The service reads this at call time, so setting it here is enough.
+  process.env.EXPO_PUBLIC_WORKOS_CLIENT_ID = "client_test";
+});
+
+// Must come first: the service memoises its WorkOS client on first use, so this is the
+// only point at which the unset-env path is still observable.
+describe("configuration", () => {
+  it("reports a missing client ID at the point of use, not at import", async () => {
+    // Importing this module must never throw — the root layout imports it, and web
+    // server-rendering evaluates it in Node (`web.output: "static"`). Every other test
+    // in this file importing it successfully is that guarantee; this asserts the error
+    // still arrives, at the call.
+    delete process.env.EXPO_PUBLIC_WORKOS_CLIENT_ID;
+
+    await expect(getSignInUrl()).rejects.toThrow("EXPO_PUBLIC_WORKOS_CLIENT_ID is not set");
+  });
 });
 
 describe("getUser", () => {
