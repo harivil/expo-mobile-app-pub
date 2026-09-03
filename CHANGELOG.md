@@ -12,11 +12,13 @@ semver as [`versioning`](.claude/skills/versioning/SKILL.md) section 3 defines i
 
 - The delivery harness: agent skills, guard hooks, three review agents, and the intent → spec
   → plan → build → verify → review → ship loop.
-- Expo SDK 57 app on iOS, Android and web — tabbed home and explore screens, a clamped counter,
-  design tokens with light and dark palettes.
+- Expo SDK 57 app on iOS, Android and web — a single counter screen whose count clamps at zero,
+  built on design tokens with light and dark palettes and four themed primitives (`Screen`,
+  `ThemedText`, `ThemedView`, `Button`).
 - Release path: `eas.json` with remote build numbers and the `fingerprint` runtime policy,
   plus EAS workflows for the production release and OTA updates.
-- Test layers: Jest unit tests, a Maestro native smoke flow, and Playwright web coverage of
-  browser back and cold deep links.
+- Test layers: Jest unit and functional tests, two Maestro native flows (launch smoke and the
+  counter journey), and Playwright web coverage of the counter, browser reload and the desktop
+  content column.
 
 <!-- Nothing has shipped to a store yet, so there is no released version below this line. -->

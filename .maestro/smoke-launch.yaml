@@ -1,19 +1,26 @@
-# Smoke: the app launches and shows its first screen.
+# Smoke: the app launches, shows its first screen, and responds to a tap.
 #
 # The cheapest flow that catches the most expensive failure — a build that installs and then
 # dies on launch. Keep it fast and keep it passing; everything else is allowed to be slower.
 #
 # Run:  maestro test -e APP_ID=<your.bundle.id> .maestro/smoke-launch.yaml
-# CI:   .eas/workflows/e2e.yml passes APP_ID from the build.
+# CI:   .eas/workflows/e2e.yml passes APP_ID from the build, in both test_android and test_ios.
+#       test_ios is what covers iOS for teammates on Windows, so this file is load-bearing for
+#       the whole team rather than for one feature.
 #
-# The ids below are real. `home-screen` and `explore-screen` come from <Screen testID>;
-# `tab-explore` from the tab's `tabBarButtonTestID` in src/app/(tabs)/_layout.tsx. A testID
-# becomes accessibilityIdentifier on iOS and resource-id on Android, so one prop serves this
-# flow and the Playwright one. Add it while building the component, not from a test branch.
+# The ids are real: `counter-screen` and `counter-value` come from <Screen testID> and the value
+# in src/screens/counter/index.tsx, `counter-increase` from the Button there. A testID becomes
+# accessibilityIdentifier on iOS and resource-id on Android, so one prop serves this flow and
+# the Playwright one in e2e/web/.
 #
-# NOT YET RUN on a device from this repo — Maestro is not installed here and Windows has no
-# iOS simulator. The web counterpart in e2e/web/ passes, which proves the ids resolve; the
-# native run is what .eas/workflows/e2e.yml covers.
+# This flow previously asserted on `home-screen`, `tab-explore` and `explore-screen` from a
+# src/app/(tabs)/_layout.tsx that was never written, and claimed a web counterpart in e2e/web/
+# passed when that directory did not exist. It was rewritten onto the app that does exist: a
+# single counter route. The deeper counter journey lives in .maestro/counter.yaml.
+#
+# NOT YET RUN on a device from this repo — Maestro is not installed here and Windows has no iOS
+# simulator. e2e/web/counter.spec.ts passes against the same ids, which proves they resolve on
+# web; the native run is what .eas/workflows/e2e.yml covers.
 
 appId: ${APP_ID}
 ---
@@ -22,14 +29,15 @@ appId: ${APP_ID}
 
 # Assert on a testID rather than on copy — a wording change should not fail a smoke test.
 - assertVisible:
-    id: "home-screen"
+    id: "counter-screen"
+
+- assertVisible:
+    id: "counter-value"
+    text: "0"
 
 # Prove the app is interactive, not just painted.
 - tapOn:
-    id: "tab-explore"
+    id: "counter-increase"
 - assertVisible:
-    id: "explore-screen"
-
-- back
-- assertVisible:
-    id: "home-screen"
+    id: "counter-value"
+    text: "1"

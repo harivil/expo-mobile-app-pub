@@ -59,7 +59,10 @@ export default function TabLayout() {
 `testID` of its own, so without it the flow has to select by visible copy and breaks on the
 next wording change. Add it with the tab, not from a test branch later.
 
-`src/app/(tabs)/_layout.tsx` in this repo is a working example.
+This app has **no tab group yet** — it is a single route, so there is no `(tabs)/_layout.tsx` here
+to copy. `src/app/_layout.tsx` is the working example of a root layout: a `Stack`, with the
+providers and theme that have to persist across navigation. The `Tabs` snippet above is the shape
+to follow when the first tab is added.
 
 **Adding a tab is two edits**: create `app/(tabs)/<slug>.tsx`, then add its `<Tabs.Screen name="<slug>" />`
 to the layout. Skip the second and the file becomes a route the tab bar never shows.
