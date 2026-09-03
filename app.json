@@ -1,0 +1,45 @@
+{
+  "expo": {
+    "name": "Mobile Standard",
+    "slug": "mobile-standard",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "mobilestandard",
+    "userInterfaceStyle": "automatic",
+    "runtimeVersion": {
+      "policy": "fingerprint"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.example.mobilestandard"
+    },
+    "android": {
+      "package": "com.example.mobilestandard",
+      "adaptiveIcon": {
+        "backgroundColor": "#ffffff"
+      }
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#ffffff",
+          "dark": {
+            "backgroundColor": "#151718"
+          },
+          "resizeMode": "contain"
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": false
+    }
+  }
+}

@@ -1,0 +1,54 @@
+# Production release: build both platforms, then submit to TestFlight and Play internal.
+#
+# The CLI path in the `release-app` skill is the primary, hand-verifiable route. This workflow
+# is the same steps run on EAS instead of a laptop, which is what stops the release depending
+# on one person's machine and one person's Xcode.
+#
+# NOT YET RUN. The job shapes mirror .eas/workflows/e2e.yml, but nobody has executed this
+# against EAS from this repo — the first run is its own verification. Validate before trusting:
+#   eas workflow:validate .eas/workflows/release-production.yml
+#   eas workflow:run .eas/workflows/release-production.yml
+#
+# Prerequisites, once per project:
+#   1. eas init                     — creates the EAS project, writes extra.eas.projectId
+#   2. eas update:configure         — writes expo.updates.url so channels resolve
+#   3. eas credentials              — Apple and Google signing, held by EAS not a laptop
+#   4. Fill the submit profile in eas.json with ascAppId / appleTeamId / the Play service
+#      account, or let the first `eas submit` prompt for them and write them back.
+
+name: release-production
+
+on:
+  # Releases are cut deliberately from a tag, never on a push to main. The tag is the record
+  # of what shipped, and `versioning` step 6 is what creates it.
+  push:
+    tags: ["v*"]
+
+jobs:
+  build_ios:
+    type: build
+    params:
+      platform: ios
+      profile: production
+
+  build_android:
+    type: build
+    params:
+      platform: android
+      profile: production
+
+  # TestFlight. Submission is a separate job so a failed submit does not discard a good build —
+  # the binary stays on EAS and can be resubmitted without rebuilding.
+  submit_ios:
+    needs: [build_ios]
+    type: submit
+    params:
+      build_id: ${{ needs.build_ios.outputs.build_id }}
+      profile: production
+
+  submit_android:
+    needs: [build_android]
+    type: submit
+    params:
+      build_id: ${{ needs.build_android.outputs.build_id }}
+      profile: production
