@@ -4,7 +4,7 @@
     "slug": "mobile-standard",
     "version": "0.1.0",
     "orientation": "portrait",
-    "scheme": "mobilestandard",
+    "scheme": "tenx-health",
     "userInterfaceStyle": "automatic",
     "runtimeVersion": {
       "policy": "fingerprint"
