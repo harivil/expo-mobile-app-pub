@@ -34,13 +34,13 @@ module.exports = defineConfig([
       "security/detect-object-injection": "off",
 
       // A hex colour in a component is invisible in whichever mode it was built in and
-      // unreadable in the other. Colours come from src/theme.ts.
+      // unreadable in the other. Colours come from src/constants/theme.ts.
       "no-restricted-syntax": [
         "error",
         {
           selector: "Literal[value=/^#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6,8})$/]",
           message:
-            "Hard-coded colour. Read it from src/theme.ts via useTheme() so dark mode works.",
+            "Hard-coded colour. Read it from src/constants/theme.ts via useTheme() so dark mode works.",
         },
       ],
       "no-console": ["warn", { allow: ["warn", "error"] }],
@@ -49,7 +49,7 @@ module.exports = defineConfig([
   },
   {
     // The theme IS the colour definitions, and tests assert against them.
-    files: ["src/theme.ts", "**/*.test.{ts,tsx}"],
+    files: ["src/constants/theme.ts", "**/*.test.{ts,tsx}"],
     rules: { "no-restricted-syntax": "off" },
   },
   {

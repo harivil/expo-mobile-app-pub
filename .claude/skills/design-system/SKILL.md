@@ -1,6 +1,6 @@
 ---
 name: design-system
-description: Design a screen for this Expo app before writing it — tokens from src/theme.ts, component variants, native platform conventions, light and dark, accessibility, and the phone-to-desktop widths web adds. Use when designing or reviewing a screen's look, adding a colour, spacing or type value, extracting a repeated view into a shared component, or when screens have drifted out of step with each other.
+description: Design a screen for this Expo app before writing it — tokens from src/constants/theme.ts, component variants, native platform conventions, light and dark, accessibility, and the phone-to-desktop widths web adds. Use when designing or reviewing a screen's look, adding a colour, spacing or type value, extracting a repeated view into a shared component, or when screens have drifted out of step with each other.
 ---
 
 # Design
@@ -12,7 +12,7 @@ mode, a spacing value that makes one screen not match its neighbour, a tap targe
 hit.
 
 The rule underneath all of it: **the design lives in
-[`src/theme.ts`](../../../src/theme.ts), not in the screen.** A screen composes tokens. When a
+[`src/constants/theme.ts`](../../../src/constants/theme.ts), not in the screen.** A screen composes tokens. When a
 screen needs a value the tokens do not have, that is a decision about the design system, made
 deliberately and once — not a literal typed into a component.
 
@@ -38,7 +38,7 @@ and the `verifier` agent hunts for exactly this.
 
 ## 2 · Tokens, and when to add one
 
-Everything visual comes from [`src/theme.ts`](../../../src/theme.ts):
+Everything visual comes from [`src/constants/theme.ts`](../../../src/constants/theme.ts):
 
 | Token group                    | Holds                                 | Rule                                                                                                                                          |
 | ------------------------------ | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -61,7 +61,7 @@ Adding a token is a real change:
 3. Check the contrast — see section 5.
 4. Say in the PR why the existing tokens did not cover it.
 
-ESLint fails the build on a hex literal outside `src/theme.ts`, so this is enforced rather than
+ESLint fails the build on a hex literal outside `src/constants/theme.ts`, so this is enforced rather than
 requested.
 
 ---
