@@ -27,6 +27,10 @@ export function Button({
   variant = "primary",
   disabled = false,
   style,
+  // Pulled out of `rest` and merged below rather than left to be spread over the top: this
+  // component promises the disabled state is always announced, and a caller passing its own
+  // accessibilityState would otherwise silently erase that promise.
+  accessibilityState,
   ...rest
 }: ButtonProps) {
   const theme = useTheme();
@@ -37,7 +41,7 @@ export function Button({
       accessibilityRole="button"
       // Announced by the screen reader, not merely drawn faintly — a disabled control that only
       // looks disabled is invisible to anyone not looking at it.
-      accessibilityState={{ disabled: Boolean(disabled) }}
+      accessibilityState={{ ...accessibilityState, disabled: Boolean(disabled) }}
       disabled={disabled}
       style={({ pressed }) => [
         styles.base,

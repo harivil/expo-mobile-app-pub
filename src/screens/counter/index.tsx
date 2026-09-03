@@ -35,9 +35,9 @@ export function Counter() {
           accessibilityLabel={`Count: ${count}`}
           accessibilityLiveRegion="polite"
           numberOfLines={1}
-          // iOS-only, and kept only as a last-resort safety net. `valueTextStyle` is the
-          // mechanism that actually shrinks the value on all three surfaces.
-          adjustsFontSizeToFit
+          // No `adjustsFontSizeToFit`: it is iOS-only, so keeping it would make iOS shrink by a
+          // second, untested mechanism and render a size no test pins — on the one surface that
+          // cannot be observed from here. `valueTextStyle` handles all three the same way.
           style={[styles.centred, valueTextStyle(count)]}
         >
           {count}

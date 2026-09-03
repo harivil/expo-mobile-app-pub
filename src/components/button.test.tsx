@@ -39,6 +39,19 @@ describe("Button", () => {
     expect(screen.getByRole("button", { name: "Increase" })).not.toBeDisabled();
   });
 
+  it("keeps announcing disabled even when a caller passes its own accessibilityState", async () => {
+    // The guarantee is only worth having if a call site cannot erase it by accident.
+    await render(
+      <Button
+        label="Reset"
+        disabled
+        accessibilityState={{ busy: true }}
+        onPress={jest.fn()}
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Reset" })).toBeDisabled();
+  });
+
   it("is never smaller than the minimum tap target", async () => {
     // Asserted here rather than at every call site — this is the guarantee that lets a screen
     // add a button without measuring it.

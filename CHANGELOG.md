@@ -17,8 +17,9 @@ semver as [`versioning`](.claude/skills/versioning/SKILL.md) section 3 defines i
   `ThemedText`, `ThemedView`, `Button`).
 - Release path: `eas.json` with remote build numbers and the `fingerprint` runtime policy,
   plus EAS workflows for the production release and OTA updates.
-- Test layers: Jest unit and functional tests, two Maestro native flows (launch smoke and the
-  counter journey), and Playwright web coverage of the counter, browser reload and the desktop
-  content column.
+- Test layers: Jest unit and functional tests, and Playwright web coverage of the counter, browser
+  reload and the desktop content column. Two Maestro native flows are committed — launch smoke and
+  the counter journey — but **neither has run on a device yet**, and only the smoke flow is wired
+  into `.eas/workflows/e2e.yml`.
 
 <!-- Nothing has shipped to a store yet, so there is no released version below this line. -->

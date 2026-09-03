@@ -61,7 +61,11 @@ web, so one prop serves Maestro and Playwright alike.
 ### Accessibility and appearance
 
 - [ ] A screen reader announces each control as its label plus its role: **"Increase, button"**,
-      **"Decrease, button"**, **"Reset, button"**, and the value as **"Count: N"**.
+      **"Decrease, button"**, **"Reset, button"**, and the value as **"Count: N"**. The value's half
+      of this is **verified on Chrome only** — see the `role=generic` concern below; treat a
+      different result from NVDA, JAWS or VoiceOver as a known gap rather than a regression.
+- [ ] The screen's title is a real **heading** in the accessibility tree, not merely large text, so
+      a screen-reader user has something to navigate to.
 - [ ] Text remains readable at a **200% system font size** — the numeral may shrink, but no control
       label is clipped and no button loses its label.
 - [ ] In **both light and dark mode**: body and heading text clears **4.5:1** against its
@@ -94,6 +98,12 @@ Named explicitly, including the ones that do not apply, so their absence reads a
 | Loading, error, offline, permission | **Not applicable.** Nothing here is async and nothing leaves the device. |
 
 Negative values are **unreachable by design** and so are not a state.
+
+Two small pieces of the screen are in the diff without a criterion of their own, named here so
+nothing is unexplained: a one-line caption under the value ("Counts up from zero. Starts over when
+the app restarts.") which tells a first-time user that the count is not saved, and
+`accessibilityLiveRegion="polite"` on the value so a screen reader announces each change rather
+than leaving the user to re-read it. Neither is asserted by a flow; both are deliberate.
 
 The splash screen is **not touched** — `app.json`'s existing `expo-splash-screen` config, including
 its separate light and dark backgrounds, is left exactly as it is.

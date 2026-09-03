@@ -19,11 +19,13 @@ src/hooks/use-theme.test.ts           (new)  light and dark selection
 src/components/themed-text.tsx        (new)  typography scale + colour roles
 src/components/themed-view.tsx        (new)  background/surface roles
 src/components/screen.tsx             (new)  safe area, centred max-width column, testID passthrough
-src/components/button.tsx             (new)  variant, size, disabled, 44x44 minimum
+src/components/button.tsx             (new)  variant, disabled, 44x44 minimum
 src/components/button.test.tsx        (new)  press, disabled-does-not-fire, accessibility state
 src/app/_layout.tsx                   (new)  root Stack, themed header and status bar
 src/app/index.tsx                     (new)  route at "/", thin — renders <Counter />
 src/screens/counter/index.tsx         (new)  screen body, useState, the three actions
+src/screens/counter/value-text-style.ts    (new)  shrinks the value by digits and font scale
+src/screens/counter/value-text-style.test.ts (new)  the shrink, including at 200% font size
 src/screens/counter/index.test.tsx    (new)  functional: increase, decrease past zero, reset, disabled reset
 .maestro/counter.yaml                 (new)  native flow for the counter journey
 .maestro/smoke-launch.yaml            (edit) retarget onto the app that now exists
@@ -77,7 +79,7 @@ control — which also makes the primary action unmistakable on first launch.
 with rather than additions to an existing set:
 
 - `Colors.light` / `Colors.dark` — `background`, `surface`, `text`, `textMuted`, `border`, `tint`,
-  `tintText`, `danger`. Named by role, identical keys in both, `tint` differs between palettes so it
+  `tintText`. Named by role, identical keys in both, `tint` differs between palettes so it
   holds contrast on near-black as well as on white.
 - `Spacing` — four-point scale, `xs` 4 through `xxl` 40.
 - `Radius`, `Typography` (size with its line height and weight together, never a bare `fontSize`),
@@ -127,7 +129,9 @@ buttons are three call sites of one component, differing only by `variant` and `
 - `npm run verify` green — format, types, lint, jest with coverage, version gate, hook and skill
   tests, expo-doctor — with its output read, not just its exit code.
 - The app loaded on **web** at a phone width and a desktop width, in **light and dark**, showing the
-  counter at `0`, at `3`, at `-1`, and reset; screenshots captured as the `after` evidence.
+  counter at `0`, at `3`, and back at `0` after reset; screenshots captured as the `after`
+  evidence. (An earlier draft of this line listed `-1`, from before the count was clamped —
+  negative values are unreachable and were never observed.)
 - `npx playwright test` green for `e2e/web/counter.spec.ts`.
 - **iOS and Android are not observed on this machine** — Windows has no iOS simulator and no Android
   emulator is configured here. `.maestro/counter.yaml` is written and committed but unrun; the PR

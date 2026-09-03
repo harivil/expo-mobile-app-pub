@@ -28,12 +28,20 @@ const id = {
  * So the gate is a real interaction rather than a paint: click until the value moves. Retries
  * can push the count past one, which is why Reset follows — every test then starts from a
  * hydrated page showing zero.
+ *
+ * The budget here is deliberately SHORT. `beforeEach` already absorbed the cold-Metro bundle
+ * cost while waiting for paint, so by the time this runs the expensive part is paid and the
+ * remaining wait is hydration alone — reproduced at about a second. A long budget here would
+ * let that inert window grow to any length while the suite still reported green, which would
+ * turn an accepted, bounded defect into an unmonitored one.
  */
+const HYDRATION_BUDGET_MS = 15_000;
+
 async function waitUntilInteractive(page: Page) {
   await expect(async () => {
     await page.getByTestId(id.increase).click({ timeout: 5_000 });
     await expect(page.getByTestId(id.value)).not.toHaveText("0", { timeout: 1_000 });
-  }).toPass({ timeout: 120_000 });
+  }).toPass({ timeout: HYDRATION_BUDGET_MS });
 
   await page.getByTestId(id.reset).click();
   await expect(page.getByTestId(id.value)).toHaveText("0");
@@ -110,10 +118,19 @@ test("keeps content in a centred column on a desktop viewport", async ({ page })
   const actions = page.getByTestId(id.actions);
   await expect(actions).toBeVisible({ timeout: 120_000 });
 
-  // Measured inside a retrying assertion, not once. `boundingBox()` returns null for an element
-  // mid-layout, and on a cold bundle the resize and the hydration land close enough together
-  // that a single measurement caught the element between the two and read null.
+  // EVERY measurement goes inside the retrying assertion. Mid-layout, `boundingBox()` returns
+  // null and a `getBoundingClientRect()` reads 0 — on a cold bundle the resize and the hydration
+  // land close enough together that a single measurement catches exactly that. A measurement
+  // taken once outside this block is the one thing that has failed here twice.
   await expect(async () => {
+    // The CAP is asserted on the element that carries it — Screen's content view. Measuring
+    // only `counter-actions` reads ~472px inside Screen's padding, which could not tell a 520
+    // cap from a 560 one, so it would pass against the wrong token.
+    const columnWidth = await actions.evaluate(
+      (node) => (node.parentElement as HTMLElement).getBoundingClientRect().width,
+    );
+    expect(columnWidth).toBe(ContentMaxWidth);
+
     const box = await actions.boundingBox();
     expect(box).not.toBeNull();
     if (box === null) return;

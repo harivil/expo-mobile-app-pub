@@ -11,6 +11,13 @@
 # The value assertions read the counter's own number, which is data rather than copy — a
 # wording change cannot break them.
 #
+# They assert "Count: N" rather than a bare "N" because `counter-value` carries
+# accessibilityLabel={`Count: ${count}`}. On iOS that label REPLACES the name derived from the
+# element's children, so the accessibility hierarchy Maestro reads exposes only "Count: 0" —
+# and `text:` is a whole-string regex, so a bare "0" matches nothing and the flow fails on iOS
+# while passing on Android, where the TextView keeps its own text. Change this string and the
+# accessibilityLabel together.
+#
 # NOT YET RUN on a device from this repo: Maestro is not installed here and Windows has no iOS
 # simulator. The disabled-at-zero states are covered by the Jest and Playwright layers instead;
 # this flow covers the taps.
@@ -25,7 +32,7 @@ appId: ${APP_ID}
 
 - assertVisible:
     id: "counter-value"
-    text: "0"
+    text: "Count: 0"
 
 - tapOn:
     id: "counter-increase"
@@ -33,16 +40,16 @@ appId: ${APP_ID}
     id: "counter-increase"
 - assertVisible:
     id: "counter-value"
-    text: "2"
+    text: "Count: 2"
 
 - tapOn:
     id: "counter-decrease"
 - assertVisible:
     id: "counter-value"
-    text: "1"
+    text: "Count: 1"
 
 - tapOn:
     id: "counter-reset"
 - assertVisible:
     id: "counter-value"
-    text: "0"
+    text: "Count: 0"

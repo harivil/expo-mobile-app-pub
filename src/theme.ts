@@ -28,25 +28,26 @@ export type Palette = {
   tintText: string;
 };
 
-// Contrast ratios below are against this palette's own `background`, computed per palette
-// rather than once — a colour that passes on white routinely fails on near-black.
+// Contrast is ASSERTED, not annotated: src/theme.test.ts computes every ratio in both
+// palettes and fails the build when one drops below its threshold. Hand-written ratios were
+// here first and two of them were simply wrong, which is the argument for the test.
 const light: Palette = {
   background: "#ffffff",
   surface: "#f2f3f5",
-  text: "#11181c", // 16.4:1
-  textMuted: "#545f66", // 6.6:1
-  border: "#8b949c", // 3.0:1
-  tint: "#0b6bcb", // tintText on tint: 5.3:1
+  text: "#11181c",
+  textMuted: "#545f66",
+  border: "#8b949c",
+  tint: "#0b6bcb",
   tintText: "#ffffff",
 };
 
 const dark: Palette = {
   background: "#151718",
   surface: "#1f2325",
-  text: "#ecedee", // 15.7:1
-  textMuted: "#9ba1a6", // 7.1:1
-  border: "#5c656b", // 3.1:1
-  tint: "#4c9aff", // tintText on tint: 6.6:1
+  text: "#ecedee",
+  textMuted: "#9ba1a6",
+  border: "#5c656b",
+  tint: "#4c9aff",
   tintText: "#0b1220",
 };
 

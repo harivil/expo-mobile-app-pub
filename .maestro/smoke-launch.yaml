@@ -33,11 +33,11 @@ appId: ${APP_ID}
 
 - assertVisible:
     id: "counter-value"
-    text: "0"
+    text: "Count: 0"
 
 # Prove the app is interactive, not just painted.
 - tapOn:
     id: "counter-increase"
 - assertVisible:
     id: "counter-value"
-    text: "1"
+    text: "Count: 1"
