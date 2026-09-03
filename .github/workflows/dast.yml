@@ -48,8 +48,13 @@ jobs:
           npx --yes serve dist --listen 8080 &
           npx --yes wait-on http://localhost:8080 --timeout 60000
 
+      # v0.15.0, not v0.12.0: the older action uploaded its report through the
+      # upload-artifact v3 API, which GitHub shut down — the upload returned HTTP 400
+      # ("The artifact name zap_scan is not valid") and failed the job *after* a clean
+      # scan, which `fail_action: false` below cannot prevent because the failure is in
+      # the action's own reporting step. v0.14.0 moved off the deprecated version.
       - name: ZAP baseline
-        uses: zaproxy/action-baseline@v0.12.0
+        uses: zaproxy/action-baseline@v0.15.0
         with:
           target: http://localhost:8080
           # Passive scan only. An active scan sends attack payloads, which is the right thing
