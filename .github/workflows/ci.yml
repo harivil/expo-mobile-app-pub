@@ -101,11 +101,18 @@ jobs:
 
       - run: npm ci
 
+      # Context values reach the shell through env, never interpolated into `run:` —
+      # a branch name is attacker-controlled on a fork PR, and `${{ }}` splices it into
+      # the script before the shell ever sees it. Semgrep's run-shell-injection rule
+      # fails the build on the interpolated form.
       - name: Commit messages follow the convention
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: >-
           npx commitlint
-          --from "origin/${{ github.base_ref }}"
-          --to "${{ github.event.pull_request.head.sha }}"
+          --from "origin/$BASE_REF"
+          --to "$HEAD_SHA"
           --verbose
 
   # The hooks and skills steer every session in this repo, so they are tested like code.
@@ -141,4 +148,6 @@ jobs:
           node-version: 22
 
       - name: Which tests did this change touch?
-        run: node .claude/scripts/test-integrity.mjs "origin/${{ github.base_ref }}"
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: node .claude/scripts/test-integrity.mjs "origin/$BASE_REF"

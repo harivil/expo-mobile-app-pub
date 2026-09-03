@@ -4,7 +4,7 @@
     "slug": "mobile-standard",
     "version": "0.1.0",
     "orientation": "portrait",
-    "scheme": "mobilestandard",
+    "scheme": "tenx-health",
     "userInterfaceStyle": "automatic",
     "runtimeVersion": {
       "policy": "fingerprint"
@@ -29,13 +29,17 @@
       [
         "expo-splash-screen",
         {
+          "image": "./src/assets/images/expo-logo.png",
+          "imageWidth": 200,
           "backgroundColor": "#ffffff",
           "dark": {
+            "image": "./src/assets/images/expo-logo.png",
             "backgroundColor": "#151718"
           },
           "resizeMode": "contain"
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,

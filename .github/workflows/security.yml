@@ -28,7 +28,15 @@ jobs:
           apk add --no-cache nodejs || true
           node .claude/scripts/semgrep-test.mjs
 
-      - name: Scan
+      # Two passes, because `--error` exits non-zero on ANY finding, not only on ERROR
+      # ones — so the single `--error` run this replaces made every WARNING block the
+      # PR, contradicting the policy stated below. First pass reports; second decides.
+      #
+      # `.semgrep-tests/` is excluded from both. Those fixtures are deliberately full of
+      # insecure patterns so the rules in .semgrep.yml can be asserted against them, and
+      # scanning them contributed 11 self-inflicted ERROR findings. The step above runs
+      # them on purpose, which is the only place they belong.
+      - name: Scan (reports every severity to the Security tab)
         run: |
           semgrep scan \
             --config .semgrep.yml \
@@ -36,10 +44,22 @@ jobs:
             --config p/react \
             --config p/secrets \
             --config p/owasp-top-ten \
-            --sarif --output semgrep.sarif \
+            --exclude .semgrep-tests \
+            --sarif --output semgrep.sarif
+
+      # The gate: an ERROR-severity finding fails the PR. Lower severities are uploaded
+      # by the step above and stay visible in the Security tab without blocking.
+      - name: Fail on an ERROR-severity finding
+        run: |
+          semgrep scan \
+            --config .semgrep.yml \
+            --config p/typescript \
+            --config p/react \
+            --config p/secrets \
+            --config p/owasp-top-ten \
+            --exclude .semgrep-tests \
+            --severity ERROR \
             --error
-        # --error fails the job on any finding at ERROR severity. WARNING findings are
-        # reported to the Security tab without blocking the PR.
 
       - uses: github/codeql-action/upload-sarif@v3
         if: ${{ !cancelled() }}
