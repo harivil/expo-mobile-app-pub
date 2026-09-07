@@ -20,8 +20,12 @@ npx tsc --noEmit
 npm test
 ```
 
-When the repo defines an aggregate script (`verify`, `check`, `ci`), run that instead — it is the
-single source of truth for what "green" means here, and it is what CI runs.
+Before pushing, run the whole set the way CI will, rather than the three commands you happen to
+remember. The **`preflight-ci`** skill covers the mapping and the triage:
+
+```bash
+node .claude/scripts/ci-local.mjs
+```
 
 **Read the output.** A command that exits zero with warnings you did not read has not been verified.
 

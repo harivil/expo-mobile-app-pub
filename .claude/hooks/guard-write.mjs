@@ -1,9 +1,46 @@
 #!/usr/bin/env node
-// PreToolUse hook for Edit / Write / MultiEdit. Blocks writes to paths that are
-// generated, vendored, or owned by a tool — where a hand edit is silently lost on
-// the next build and costs someone an afternoon to work out why.
+// PreToolUse hook for Edit / Write / MultiEdit. Blocks writes to two kinds of path:
+//
+//   1. GENERATED — where a hand edit is silently lost on the next build and costs
+//      someone an afternoon to work out why.
+//   2. GOVERNANCE — the files that decide how every future change gets built. An agent
+//      editing the rules that constrain it is the one edit nobody is positioned to
+//      review, because the reviewer's own instructions may be what changed.
+//
+// The governance block is a deliberateness gate, not a security boundary. Set
+// ALLOW_GOVERNANCE_EDIT=1 for a session whose whole purpose is changing the rules, the
+// same way ALLOW_PUSH_TO_MAIN=1 works for seeding a repo. It stops an incidental edit
+// made in passing; it cannot stop a determined one, because this hook only sees the
+// Edit, Write and MultiEdit tools — a shell redirect goes around it. The layer that
+// actually holds is code-owner review on the server, and CODEOWNERS already names
+// every path below.
 //
 // Exit 0 = allow. Exit 2 = block. Any internal error exits 0.
+
+const GOVERNANCE = [
+  {
+    // Every skill, agent, hook and script that steers a session — but not
+    // settings.local.json, which is one developer's own gitignored allowlist.
+    re: /(^|[/\\])\.claude[/\\](?!settings\.local\.json)/,
+    what: "the skills, agents, hooks and scripts that steer every session",
+  },
+  {
+    re: /(^|[/\\])(AGENTS|CLAUDE|REVIEW)\.md$/,
+    what: "the instructions every agent and reviewer works from",
+  },
+  {
+    re: /(^|[/\\])\.husky[/\\]/,
+    what: "the git hooks that reach Codex and a plain commit",
+  },
+  {
+    re: /(^|[/\\])\.github[/\\](workflows[/\\]|CODEOWNERS)/,
+    what: "what CI runs, and who has to approve a change",
+  },
+  {
+    re: /(^|[/\\])(\.semgrep\.yml|\.gitleaks\.toml|commitlint\.config\.js)$/,
+    what: "a scanner or convention that gates every commit",
+  },
+];
 
 const PROTECTED = [
   {
@@ -43,6 +80,23 @@ function main(raw) {
       return 2;
     }
   }
+
+  if (process.env.ALLOW_GOVERNANCE_EDIT !== "1") {
+    for (const rule of GOVERNANCE) {
+      if (rule.re.test(path)) {
+        process.stderr.write(
+          `Blocked write to a governance file — ${rule.what}.\n  ${path}\n` +
+            `\nThis is not a file to change in passing. Changing it changes how every future\n` +
+            `change gets built, so it belongs in its own PR, with its own reason, reviewed by a\n` +
+            `code owner.\n` +
+            `\nWhen that IS the task, start the session with ALLOW_GOVERNANCE_EDIT=1 — the person\n` +
+            `who sets it is the person who decided the rules should move.\n`,
+        );
+        return 2;
+      }
+    }
+  }
+
   return 0;
 }
 

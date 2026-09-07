@@ -147,6 +147,33 @@ URL, browser back and forward, reload mid-flow, and a desktop-width viewport.
 npx playwright test
 ```
 
+### Three ways this suite lies to you
+
+All three cost real hours here. None of them look like a test failure when they happen.
+
+**The dev server it reused was not yours.** `reuseExistingServer: !process.env.CI` means a
+Playwright run attaches to whatever is already listening on 8081 — including a dev server someone
+started days ago, on a different branch, serving a bundle that predates the code under test. The
+symptom is a suite that fails on selectors that plainly exist, or hangs. Check what is holding the
+port before believing a local result:
+
+```bash
+npx playwright test          # after confirming 8081 is either free or serving this branch
+```
+
+**Metro builds the bundle on the first request, not at startup.** `webServer.url` goes green while
+the app is still compiling, so whichever test runs first absorbs the whole build and blows its
+timeout — then passes on retry. A suite that is green only on its second attempt teaches everyone
+that a failure in it means nothing. `e2e/web/global-setup.ts` warms the bundle before any test has
+a clock running; keep it, and do not "fix" a slow first test by raising its timeout.
+
+**The starter spec asserts testIDs that do not exist.** The committed smoke flow ships with
+placeholder selectors and a comment saying to replace them. Until someone does, every test in it
+fails — and it fails identically to a genuinely broken screen. Wire the real testIDs in as part of
+the first screen, and remember this app has **two** tab components: a native one and
+`app-tabs.web.tsx`. A testID added to only one of them passes on one surface and fails on the
+other.
+
 ---
 
 ## 5 · What earns a flow

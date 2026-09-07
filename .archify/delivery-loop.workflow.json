@@ -1,0 +1,341 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Change Delivery Loop",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "stage-chain",
+        "label": "Request to shipped",
+        "focus": ["intake", "spec", "plan", "build", "verify", "ship"],
+        "note": "The one path every feature, bug and incident takes through this repo."
+      },
+      {
+        "id": "evidence-chain",
+        "label": "Evidence, not assertion",
+        "focus": ["before", "after", "pr"],
+        "note": "The baseline is captured before the build, because afterwards it no longer exists."
+      },
+      {
+        "id": "independent-agents",
+        "label": "Independent ground truth",
+        "focus": ["spec_reviewer", "verifier", "change_reviewer"],
+        "note": "Three agents checked against something other than the document that produced the code."
+      }
+    ]
+  },
+  "lanes": [
+    {
+      "id": "work",
+      "label": "Delivery stages"
+    },
+    {
+      "id": "evidence",
+      "label": "Evidence"
+    },
+    {
+      "id": "agents",
+      "label": "Independent agents"
+    }
+  ],
+  "phases": [
+    {
+      "id": "define",
+      "label": "Define",
+      "fromCol": 0,
+      "toCol": 1
+    },
+    {
+      "id": "make",
+      "label": "Plan + build",
+      "fromCol": 2,
+      "toCol": 3,
+      "variant": "emphasis"
+    },
+    {
+      "id": "prove",
+      "label": "Prove + ship",
+      "fromCol": 4,
+      "toCol": 5,
+      "variant": "dashed"
+    }
+  ],
+  "groups": [
+    {
+      "id": "artifact_chain",
+      "label": "Each stage commits an artifact the next one reads",
+      "lane": "work",
+      "fromCol": 0,
+      "toCol": 2,
+      "variant": "emphasis"
+    },
+    {
+      "id": "different_truth",
+      "label": "Report only — none fixes, none approves",
+      "lane": "agents",
+      "fromCol": 1,
+      "toCol": 5,
+      "variant": "security"
+    },
+    {
+      "id": "capture_pair",
+      "label": "Same journey, before and after",
+      "lane": "evidence",
+      "fromCol": 2,
+      "toCol": 5,
+      "variant": "dashed"
+    }
+  ],
+  "mainPath": ["intake", "spec", "plan", "build", "verify", "ship"],
+  "semanticChecks": {
+    "allowedTerminals": ["spec_reviewer", "verifier", "change_reviewer"],
+    "requiredEdges": [
+      {
+        "from": "plan",
+        "to": "before"
+      },
+      {
+        "from": "ship",
+        "to": "intake"
+      }
+    ],
+    "requiredPaths": [
+      {
+        "from": "intake",
+        "to": "pr"
+      }
+    ]
+  },
+  "nodes": [
+    {
+      "id": "intake",
+      "lane": "work",
+      "col": 0,
+      "type": "external",
+      "label": "Intent",
+      "sublabel": "the problem, their words",
+      "width": 132
+    },
+    {
+      "id": "spec",
+      "lane": "work",
+      "col": 1,
+      "type": "backend",
+      "label": "Spec",
+      "sublabel": "criteria + surfaces",
+      "tag": "human gate if large",
+      "width": 132
+    },
+    {
+      "id": "plan",
+      "lane": "work",
+      "col": 2,
+      "type": "backend",
+      "label": "Plan + design",
+      "sublabel": "files, order, tokens",
+      "width": 132
+    },
+    {
+      "id": "build",
+      "lane": "work",
+      "col": 3,
+      "type": "backend",
+      "label": "Build",
+      "sublabel": "the diff",
+      "width": 132
+    },
+    {
+      "id": "verify",
+      "lane": "work",
+      "col": 4,
+      "type": "security",
+      "label": "Verify",
+      "sublabel": "iOS, Android, web",
+      "tag": "light and dark",
+      "width": 132
+    },
+    {
+      "id": "ship",
+      "lane": "work",
+      "col": 5,
+      "type": "cloud",
+      "label": "Ship",
+      "sublabel": "merge, tag, EAS",
+      "width": 132
+    },
+    {
+      "id": "spec_reviewer",
+      "lane": "agents",
+      "col": 1,
+      "type": "security",
+      "label": "spec-reviewer",
+      "sublabel": "reads intent + the code",
+      "tag": "no Bash tool",
+      "width": 132
+    },
+    {
+      "id": "verifier",
+      "lane": "agents",
+      "col": 4,
+      "type": "security",
+      "label": "verifier",
+      "sublabel": "runs the app, not the docs",
+      "tag": "no Edit tool",
+      "width": 132
+    },
+    {
+      "id": "change_reviewer",
+      "lane": "agents",
+      "col": 5,
+      "type": "security",
+      "label": "change-reviewer",
+      "sublabel": "diff vs REVIEW.md",
+      "width": 132,
+      "tag": "three passes"
+    },
+    {
+      "id": "before",
+      "lane": "evidence",
+      "col": 2,
+      "type": "database",
+      "label": "Capture before",
+      "sublabel": "baseline screens",
+      "width": 132,
+      "tag": "before the first edit"
+    },
+    {
+      "id": "after",
+      "lane": "evidence",
+      "col": 3,
+      "type": "database",
+      "label": "Capture after",
+      "sublabel": "same journey",
+      "width": 132
+    },
+    {
+      "id": "pr",
+      "lane": "evidence",
+      "col": 5,
+      "type": "frontend",
+      "label": "open-pr",
+      "sublabel": "images in the body",
+      "tag": "gaps named",
+      "width": 132
+    }
+  ],
+  "edges": [
+    {
+      "id": "intent-spec",
+      "from": "intake",
+      "to": "spec",
+      "variant": "emphasis"
+    },
+    {
+      "id": "spec-review",
+      "from": "spec",
+      "to": "spec_reviewer",
+      "variant": "security",
+      "role": "branch"
+    },
+    {
+      "id": "spec-plan",
+      "from": "spec",
+      "to": "plan",
+      "variant": "emphasis"
+    },
+    {
+      "id": "plan-baseline",
+      "from": "plan",
+      "to": "before",
+      "variant": "dashed",
+      "role": "branch"
+    },
+    {
+      "id": "plan-build",
+      "from": "plan",
+      "to": "build",
+      "variant": "emphasis"
+    },
+    {
+      "id": "build-verify",
+      "from": "build",
+      "to": "verify",
+      "variant": "emphasis"
+    },
+    {
+      "id": "verify-agent",
+      "from": "verify",
+      "to": "verifier",
+      "variant": "security",
+      "role": "branch"
+    },
+    {
+      "id": "baseline-after",
+      "from": "before",
+      "to": "after",
+      "variant": "dashed"
+    },
+    {
+      "id": "after-pr",
+      "from": "after",
+      "to": "pr",
+      "variant": "dashed"
+    },
+    {
+      "id": "pr-review",
+      "from": "pr",
+      "to": "change_reviewer",
+      "variant": "security"
+    },
+    {
+      "id": "verify-ship",
+      "from": "verify",
+      "to": "ship",
+      "variant": "emphasis"
+    },
+    {
+      "id": "maintain-loop",
+      "from": "ship",
+      "to": "intake",
+      "label": "maintain writes the next intent",
+      "variant": "dashed",
+      "role": "return",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [
+        [1000, 127],
+        [1000, 20],
+        [24, 20],
+        [24, 127]
+      ],
+      "labelSegment": 2
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "One loop, sized not skipped",
+      "items": [
+        "Small runs build, verify, ship; standard adds spec and plan; large sends the spec to a human first",
+        "One kebab-case slug names the branch, the commit scope and all three documents"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Different ground truth on purpose",
+      "items": [
+        "The verifier judges the running app — never AGENTS.md, the plan's reasoning, or the builder's summary",
+        "All three report; the agent that wrote the code has no route to approve it"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Evidence, not assertion",
+      "items": [
+        "The baseline is captured before the first edit, because afterwards it cannot be reconstructed",
+        "A surface this machine cannot reach is named in the PR body, never left as a blank cell"
+      ]
+    }
+  ]
+}

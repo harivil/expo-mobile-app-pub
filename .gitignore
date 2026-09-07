@@ -57,7 +57,8 @@ semgrep.sarif
 *.sarif
 .semgrep_logs/
 
-# Local CI receipt from .claude/scripts/ci-local.mjs — a per-machine result, not shared state.
+# Receipt from .claude/scripts/ci-local.mjs — what was checked, against which tree. Local
+# evidence for guard-pr.mjs, meaningless on another machine.
 .claude/.ci-local.json
 
 # Per-developer Claude Code overrides — a personal permission allowlist, not team policy.

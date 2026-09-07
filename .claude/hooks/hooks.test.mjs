@@ -10,11 +10,13 @@
 
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
+const ROOT = resolve(HERE, "..", "..");
 const BLOCK = 2;
 const ALLOW = 0;
 
@@ -28,8 +30,8 @@ function run(hook, payload, env) {
     env: {
       ...process.env,
       CLAUDE_SKIP_PLUGIN_CHECK: "",
+      CLAUDE_SKIP_CI_PREFLIGHT: "",
       CLAUDE_PROJECT_DIR: "",
-      ALLOW_PUSH_TO_MAIN: "",
       ...env,
     },
   });
@@ -61,6 +63,43 @@ const CASES = [
   ["guard-bash.mjs", bash("git push --force origin feat"), BLOCK, "force push"],
   ["guard-bash.mjs", bash("git push -f"), BLOCK, "force push, short flag"],
 
+  // main is append-only. Each of these is a different spelling of rewriting it, and every one
+  // of them was allowed until someone went looking.
+  [
+    "guard-bash.mjs",
+    bash("git push --force-with-lease origin main"),
+    BLOCK,
+    "lease-guarded, still rewrites main",
+  ],
+  ["guard-bash.mjs", bash("git push origin +main"), BLOCK, "+refspec force onto main"],
+  [
+    "guard-bash.mjs",
+    bash("git push origin +main:main"),
+    BLOCK,
+    "+refspec, both sides named",
+  ],
+  [
+    "guard-bash.mjs",
+    bash("git push origin +feat"),
+    BLOCK,
+    "+refspec is a force push on any branch",
+  ],
+  [
+    "guard-bash.mjs",
+    bash("git push --delete origin main"),
+    BLOCK,
+    "deleting main on the remote",
+  ],
+  ["guard-bash.mjs", bash("git push origin :main"), BLOCK, "the colon spelling of delete"],
+  ["guard-bash.mjs", bash("git branch -f main abc123"), BLOCK, "moving the local main ref"],
+  ["guard-bash.mjs", bash("git branch -D main"), BLOCK, "deleting local main"],
+  [
+    "guard-bash.mjs",
+    bash("git update-ref refs/heads/main abc123"),
+    BLOCK,
+    "moving main by plumbing",
+  ],
+
   // --- guard-bash: allowed -------------------------------------------------
   [
     "guard-bash.mjs",
@@ -74,7 +113,15 @@ const CASES = [
     ALLOW,
     "lease-guarded push",
   ],
-  ["guard-bash.mjs", bash("yarn add zod"), ALLOW, "yarn add of a non-Expo package"],
+  [
+    "guard-bash.mjs",
+    bash("git branch -D old-feature"),
+    ALLOW,
+    "deleting an ordinary branch",
+  ],
+  ["guard-bash.mjs", bash("git switch main"), ALLOW, "reading main is not writing it"],
+  ["guard-bash.mjs", bash("git rebase main"), ALLOW, "rebasing onto main"],
+  ["guard-bash.mjs", bash("git log main..HEAD"), ALLOW, "main named in a revision range"],
   ["guard-bash.mjs", bash("npm install"), ALLOW, "bare install, restores the tree"],
   ["guard-bash.mjs", bash("npm run lint"), ALLOW, "ordinary script"],
   [
@@ -216,6 +263,81 @@ const CASES = [
     "formatter with no node_modules present",
   ],
   ["format-after-edit.mjs", {}, ALLOW, "formatter, no path"],
+
+  // --- guard-write: governance ---------------------------------------------
+  //
+  // The files that decide how every future change gets built. An agent editing the rules
+  // that constrain it is the one edit nobody is positioned to review, because the
+  // reviewer's own instructions may be what changed.
+  [
+    "guard-write.mjs",
+    write("/Users/x/app/.claude/settings.json"),
+    BLOCK,
+    "the file that wires these guards",
+  ],
+  [
+    "guard-write.mjs",
+    write("/Users/x/app/.claude/skills/verify-app/SKILL.md"),
+    BLOCK,
+    "a skill body",
+  ],
+  [
+    "guard-write.mjs",
+    write("/Users/x/app/.claude/agents/verifier.md"),
+    BLOCK,
+    "an agent's ground truth",
+  ],
+  [
+    "guard-write.mjs",
+    write("/Users/x/app/AGENTS.md"),
+    BLOCK,
+    "the instructions themselves",
+  ],
+  ["guard-write.mjs", write("AGENTS.md"), BLOCK, "the instructions, relative path"],
+  ["guard-write.mjs", write("/Users/x/app/REVIEW.md"), BLOCK, "what a reviewer checks"],
+  ["guard-write.mjs", write("/Users/x/app/.husky/pre-push"), BLOCK, "a git hook"],
+  [
+    "guard-write.mjs",
+    write("/Users/x/app/.github/workflows/ci.yml"),
+    BLOCK,
+    "what CI runs",
+  ],
+  [
+    "guard-write.mjs",
+    write("/Users/x/app/.github/CODEOWNERS"),
+    BLOCK,
+    "who has to approve a change",
+  ],
+  ["guard-write.mjs", write("/Users/x/app/.semgrep.yml"), BLOCK, "a scanner rule"],
+  [
+    "guard-write.mjs",
+    write("/Users/x/app/commitlint.config.js"),
+    BLOCK,
+    "the commit convention",
+  ],
+  // Per-developer settings are gitignored and personal — not governance.
+  [
+    "guard-write.mjs",
+    write("/Users/x/app/.claude/settings.local.json"),
+    ALLOW,
+    "one developer's own allowlist",
+  ],
+  // A README under .github is documentation, not a gate.
+  [
+    "guard-write.mjs",
+    write("/Users/x/app/.github/PULL_REQUEST_TEMPLATE.md"),
+    ALLOW,
+    "the PR template",
+  ],
+  // The escape hatch has to work, or a session whose whole purpose is changing the rules
+  // cannot do its job.
+  [
+    "guard-write.mjs",
+    write("/Users/x/app/AGENTS.md"),
+    ALLOW,
+    "ALLOW_GOVERNANCE_EDIT overrides the block",
+    { ALLOW_GOVERNANCE_EDIT: "1" },
+  ],
 ];
 
 let failed = 0;
@@ -239,6 +361,266 @@ for (const [hook, payload, expected, label, env] of CASES) {
   const ok = res.status === ALLOW;
   if (!ok) failed++;
   console.log(`${ok ? "pass" : "FAIL"}  guard-bash.mjs         allow  unparseable stdin`);
+}
+
+// --- guard-pr -------------------------------------------------------------
+//
+// This guard reads the receipt ci-local.mjs writes, so each case writes its own receipt to a
+// temp path and points the hook at it. That keeps the outcome dependent on the fixture rather
+// than on whether whoever is running the tests happens to have a green run sitting in the
+// repo — the mistake that would make these cases pass on one laptop and fail on another.
+
+let prCases = 0;
+
+{
+  const TMP = mkdtempSync(join(tmpdir(), "pr-guard-"));
+  let seq = 0;
+
+  const git = (...args) => {
+    const r = spawnSync("git", args, { cwd: ROOT, encoding: "utf8" });
+    return r.status === 0 ? r.stdout.trim() : "";
+  };
+
+  // The digest ci-local.mjs records: this commit plus the state of the working tree.
+  const sha = git("rev-parse", "HEAD");
+  const thisTree = createHash("sha1")
+    .update(`${sha}\n${git("status", "--porcelain")}`)
+    .digest("hex");
+
+  /** Write a receipt and return its path. */
+  function receipt(body) {
+    const path = join(TMP, `receipt-${seq++}.json`);
+    writeFileSync(path, JSON.stringify(body));
+    return path;
+  }
+
+  const MISSING = join(TMP, "never-written.json");
+  const GREEN = receipt({
+    version: 1,
+    green: true,
+    full: true,
+    sha,
+    tree: thisTree,
+    failed: [],
+    skipped: [],
+  });
+  const RED = receipt({
+    version: 1,
+    green: false,
+    full: true,
+    sha,
+    tree: thisTree,
+    failed: ["types", "test"],
+  });
+  const STALE = receipt({
+    version: 1,
+    green: true,
+    full: true,
+    sha,
+    tree: "0".repeat(40),
+    dirty: true,
+  });
+  const PARTIAL = receipt({
+    version: 1,
+    green: true,
+    full: false,
+    sha,
+    tree: thisTree,
+    argv: ["--only=types,lint"],
+  });
+  // A receipt written before `full` existed. Absent is not false — refusing every one of them
+  // would block on a field nobody knew to write.
+  const LEGACY = receipt({ version: 1, green: true, sha, tree: thisTree });
+
+  const PR_CASES = [
+    // Gated: these are the actions that put a change in front of a reviewer.
+    ["gh pr create --fill", MISSING, BLOCK, "open a PR with the gate never run"],
+    ["gh pr create --fill", RED, BLOCK, "open a PR after a failed run"],
+    [
+      "gh pr create --fill",
+      STALE,
+      BLOCK,
+      "open a PR when the green run was against other code",
+    ],
+    [
+      "gh pr create --fill",
+      PARTIAL,
+      BLOCK,
+      "a --only run is green about the checks it chose",
+    ],
+    ["gh pr ready 1", MISSING, BLOCK, "mark ready for review"],
+    ["gh pr merge 1 --squash", MISSING, BLOCK, "merge"],
+    ["npm run lint && gh pr create --fill", MISSING, BLOCK, "second segment of a chain"],
+
+    // Allowed.
+    ["gh pr create --fill", GREEN, ALLOW, "green run against exactly this code"],
+    ["gh pr create --fill", LEGACY, ALLOW, "a receipt written before `full` existed"],
+    [
+      "gh pr create --draft --fill",
+      MISSING,
+      ALLOW,
+      "a draft shares work without asking for review",
+    ],
+    ["gh pr view 1", MISSING, ALLOW, "reading a PR"],
+    ["gh pr checks 1 --watch", MISSING, ALLOW, "watching checks"],
+    ["gh pr list", MISSING, ALLOW, "listing PRs"],
+    ["git push -u origin feat", MISSING, ALLOW, "pushing a branch is not opening a PR"],
+    ['echo "then run gh pr create"', MISSING, ALLOW, "mention inside a quoted string"],
+  ];
+
+  for (const [command, path, expected, label] of PR_CASES) {
+    const got = run("guard-pr.mjs", bash(command), { CLAUDE_CI_RECEIPT: path });
+    const ok = got === expected;
+    if (!ok) failed++;
+    prCases++;
+    const want = expected === BLOCK ? "block" : "allow";
+    console.log(
+      `${ok ? "pass" : "FAIL"}  ${"guard-pr.mjs".padEnd(22)} ${want}  ${label}${ok ? "" : `  (got exit ${got})`}`,
+    );
+  }
+
+  // The escape hatch has to work, or a broken gate becomes a broken team.
+  {
+    const got = run("guard-pr.mjs", bash("gh pr create --fill"), {
+      CLAUDE_CI_RECEIPT: MISSING,
+      CLAUDE_SKIP_CI_PREFLIGHT: "1",
+    });
+    const ok = got === ALLOW;
+    if (!ok) failed++;
+    prCases++;
+    console.log(
+      `${ok ? "pass" : "FAIL"}  ${"guard-pr.mjs".padEnd(22)} allow  CLAUDE_SKIP_CI_PREFLIGHT overrides a block${ok ? "" : `  (got exit ${got})`}`,
+    );
+  }
+
+  // Malformed input must never wedge a session.
+  {
+    const got = run("guard-pr.mjs", {}, { CLAUDE_CI_RECEIPT: MISSING });
+    const ok = got === ALLOW;
+    if (!ok) failed++;
+    prCases++;
+    console.log(
+      `${ok ? "pass" : "FAIL"}  ${"guard-pr.mjs".padEnd(22)} allow  no command field${ok ? "" : `  (got exit ${got})`}`,
+    );
+  }
+
+  rmSync(TMP, { recursive: true, force: true });
+}
+
+// --- guard-bash, branch-aware ---------------------------------------------
+//
+// The subtle half of protecting main: these commands name no branch at all. `git push
+// --force-with-lease` pushes whatever you are standing on, and a hard reset destroys it in
+// place. Identical text, opposite consequences, so the fixture is a real repo on a real branch.
+
+let branchCases = 0;
+
+{
+  const TMP = mkdtempSync(join(tmpdir(), "branch-guard-"));
+  const git = (...args) => spawnSync("git", args, { cwd: TMP, encoding: "utf8" });
+
+  git("init", "-b", "main");
+  git("config", "user.email", "test@example.com");
+  git("config", "user.name", "test");
+  writeFileSync(join(TMP, "seed.txt"), "seed\n");
+  git("add", "-A");
+  git("commit", "-m", "chore: seed");
+
+  const runIn = (command) =>
+    spawnSync(process.execPath, [join(HERE, "guard-bash.mjs")], {
+      input: JSON.stringify(bash(command)),
+      encoding: "utf8",
+      cwd: TMP,
+      env: { ...process.env, CLAUDE_SKIP_PLUGIN_CHECK: "", CLAUDE_PROJECT_DIR: "" },
+    }).status;
+
+  const DANGEROUS = ["git reset --hard HEAD~1", "git push --force-with-lease"];
+
+  for (const command of DANGEROUS) {
+    const got = runIn(command);
+    const ok = got === BLOCK;
+    if (!ok) failed++;
+    branchCases++;
+    console.log(
+      `${ok ? "pass" : "FAIL"}  ${"guard-bash.mjs".padEnd(22)} block  on main: ${command}${ok ? "" : `  (got exit ${got})`}`,
+    );
+  }
+
+  // The same commands on a branch of your own are ordinary work.
+  git("switch", "-c", "feat");
+  for (const command of DANGEROUS) {
+    const got = runIn(command);
+    const ok = got === ALLOW;
+    if (!ok) failed++;
+    branchCases++;
+    console.log(
+      `${ok ? "pass" : "FAIL"}  ${"guard-bash.mjs".padEnd(22)} allow  on a branch: ${command}${ok ? "" : `  (got exit ${got})`}`,
+    );
+  }
+
+  rmSync(TMP, { recursive: true, force: true });
+}
+
+// --- guard-push -----------------------------------------------------------
+//
+// A git hook rather than a Claude Code hook, so it refuses by git's convention (exit 1) and is
+// exercised the way git calls it: one line per ref on stdin, and a real repo to resolve the
+// shas against. Two real commits are cheaper here than any amount of mocking, and they make the
+// fast-forward case — the one that must keep working — genuinely true rather than asserted.
+
+let pushCases = 0;
+
+{
+  const TMP = mkdtempSync(join(tmpdir(), "push-guard-"));
+  const git = (...args) => spawnSync("git", args, { cwd: TMP, encoding: "utf8" });
+  const ZERO = "0".repeat(40);
+  const REFUSE = 1;
+
+  git("init", "-b", "main");
+  git("config", "user.email", "test@example.com");
+  git("config", "user.name", "test");
+  writeFileSync(join(TMP, "a.txt"), "a\n");
+  git("add", "-A");
+  git("commit", "-m", "chore: first");
+  const first = git("rev-parse", "HEAD").stdout.trim();
+  writeFileSync(join(TMP, "b.txt"), "b\n");
+  git("add", "-A");
+  git("commit", "-m", "chore: second");
+  const second = git("rev-parse", "HEAD").stdout.trim();
+
+  /** One pre-push line: local ref, local sha, remote ref, remote sha. */
+  const push = (localSha, remoteRef, remoteSha) =>
+    spawnSync(process.execPath, [join(HERE, "guard-push.mjs")], {
+      input: `refs/heads/x ${localSha} ${remoteRef} ${remoteSha}\n`,
+      encoding: "utf8",
+      cwd: TMP,
+    }).status;
+
+  const PUSH_CASES = [
+    // Adding commits on top of what the remote has is the whole point.
+    [push(second, "refs/heads/main", first), ALLOW, "fast-forward onto main"],
+    // The remote is ahead: this push drops a commit someone else can already see.
+    [push(first, "refs/heads/main", second), REFUSE, "force-push onto main"],
+    [push(ZERO, "refs/heads/main", second), REFUSE, "deleting main"],
+    [push(second, "refs/heads/master", first), ALLOW, "fast-forward onto master"],
+    [push(first, "refs/heads/master", second), REFUSE, "force-push onto master"],
+    // Your own branch is yours to rewrite.
+    [push(first, "refs/heads/feat", second), ALLOW, "force-push onto a feature branch"],
+    // Nothing on the remote to overwrite yet.
+    [push(second, "refs/heads/main", ZERO), ALLOW, "creating main on a fresh remote"],
+  ];
+
+  for (const [got, expected, label] of PUSH_CASES) {
+    const ok = got === expected;
+    if (!ok) failed++;
+    pushCases++;
+    const want = expected === ALLOW ? "allow" : "refuse";
+    console.log(
+      `${ok ? "pass" : "FAIL"}  ${"guard-push.mjs".padEnd(22)} ${want}  ${label}${ok ? "" : `  (got exit ${got})`}`,
+    );
+  }
+
+  rmSync(TMP, { recursive: true, force: true });
 }
 
 // --- require-plugins ------------------------------------------------------
@@ -430,5 +812,7 @@ let pluginCases = 0;
   rmSync(TMP, { recursive: true, force: true });
 }
 
-console.log(`\n${CASES.length + 1 + pluginCases} cases, ${failed} failed`);
+console.log(
+  `\n${CASES.length + 1 + branchCases + pushCases + prCases + pluginCases} cases, ${failed} failed`,
+);
 process.exit(failed === 0 ? 0 : 1);

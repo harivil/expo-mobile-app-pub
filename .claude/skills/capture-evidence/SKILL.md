@@ -82,9 +82,17 @@ that is merely implied ships broken.
 
 ## Into the PR
 
-Fill the evidence table in `.github/PULL_REQUEST_TEMPLATE.md`: before and after per surface, and the
-unverified list. Drag the files from `.evidence/<slug>/` into the PR body — GitHub hosts them and
-renders `.mp4` inline.
+[`open-pr`](../open-pr/SKILL.md) does this part — it fills the evidence table in
+`.github/PULL_REQUEST_TEMPLATE.md` from `.evidence/<slug>/manifest.json`, uploads the files, and
+names every gap the manifest recorded:
+
+```bash
+node .claude/skills/open-pr/scripts/open-pr.mjs <slug> --capture --what "one sentence"
+```
+
+By hand it is the same table filled in yourself — before and after per surface, plus the unverified
+list — with the files dragged from `.evidence/<slug>/` into the PR body, which is where GitHub hosts
+them and renders `.mp4` inline.
 
 A logic-only change with nothing visible says so explicitly, and shows the test output or the numbers
 instead. "No UI change" is a complete answer; leaving the section blank is not.

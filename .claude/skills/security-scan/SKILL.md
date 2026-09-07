@@ -26,7 +26,15 @@ rule. It is not needed to work on the app — CI runs it regardless — but it i
 
 ```bash
 pipx install semgrep          # or: pip install semgrep, brew install semgrep
-semgrep scan --config .semgrep.yml --config p/typescript --config p/secrets .
+semgrep scan --config .semgrep.yml --config p/typescript --config p/secrets --exclude .semgrep-tests .
+```
+
+Always exclude `.semgrep-tests/`. Every fixture in it is deliberately vulnerable — that is how the
+rules are tested — so a scan that includes it reports each fixture as a finding and buries the real
+ones. The **`preflight-ci`** skill runs the scan exactly as CI does, which is usually what you want:
+
+```bash
+node .claude/scripts/ci-local.mjs --only=semgrep-rules,semgrep
 ```
 
 No Python? Docker works identically on Windows and macOS:
