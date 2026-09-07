@@ -15,16 +15,18 @@ One paragraph. What a user can do now that they could not before.
 
 ## Evidence
 
-Drag files from `.evidence/<slug>/` — GitHub hosts them and renders `.mp4` inline.
+**CI captures the "after" itself.** The Screenshots workflow shoots iOS, Android and web (light and
+dark) from this PR's head commit and writes them into this body between its own markers — leave that
+block alone, it is rewritten on every push. Nothing to drag.
 
-| Surface | Before | After |
-| ------- | ------ | ----- |
-| iOS     |        |       |
-| Android |        |       |
-| Web     |        |       |
+What CI cannot do, and you still can:
 
-For a fix, the **before** recording should show the bug happening. That clip is what makes this
-reviewable by someone who never reproduced it.
+- **A `before`.** CI only builds this commit. For a fix, a before recording showing the bug is what
+  makes the PR reviewable by someone who never reproduced it —
+  `node .claude/scripts/capture.mjs before <slug> --record`, then drag it in here.
+- **Anything behind the login.** CI has no session, so its screenshots are of the login screen. A
+  change to a screen inside `(tabs)` needs a capture flow to reach it — see `write-e2e` — and the
+  `evidence` check will fail until one exists.
 
 **Logic-only change?** Say so here instead, and paste the test output or the numbers that prove it.
 

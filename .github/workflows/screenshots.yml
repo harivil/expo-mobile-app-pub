@@ -1,0 +1,259 @@
+name: Screenshots
+
+# Every PR that changes the app gets screenshots of iOS, Android and web in its body, put there
+# by CI rather than by whoever raised it. The reasoning, the limits and the costs are in
+# docs/specs/pr-screenshots.md; the parts that are load-bearing are commented where they sit.
+
+on:
+  pull_request:
+    # `ready_for_review` is NOT in the default set (opened, synchronize, reopened). Without it a
+    # PR opened as a draft — exempt from this check — would never re-report after being marked
+    # ready, leaving a required context pending forever on an unmergeable PR.
+    types: [opened, synchronize, reopened, ready_for_review]
+
+# Deliberately NOT sharing ci.yml's `ci-${{ github.ref }}` group. That one cancels in progress,
+# which here could land between "images pushed" and "body rewritten" and leave the body showing
+# a SHA that is no longer head.
+concurrency:
+  group: screenshots-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+# Least privilege by default; only `publish` widens it, and only for itself.
+permissions:
+  contents: read
+
+env:
+  CLAUDE_SKIP_PLUGIN_CHECK: 1
+
+jobs:
+  # ---------------------------------------------------------------- is this a UI change at all
+  detect:
+    runs-on: ubuntu-latest
+    outputs:
+      ui: ${{ steps.rule.outputs.ui }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - id: rule
+        name: Apply the path rule
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files" \
+            --paginate --jq '.[].filename' > changed.txt
+          echo "changed files:"; cat changed.txt
+          UI=$(node .github/scripts/ui-touched.mjs --stdin < changed.txt | tail -1)
+          echo "ui=$UI" >> "$GITHUB_OUTPUT"
+          echo "UI-touching: $UI"
+
+  # ---------------------------------------------------------------- web: light and dark
+  web:
+    needs: detect
+    if: needs.detect.outputs.ui == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+
+      # The static export, never the dev server: Metro's dev server does not fire the browser
+      # `load` event in this project, which is why the local Playwright suite times out.
+      - name: Export web
+        run: npx expo export --platform web --output-dir dist
+
+      - name: Shoot light and dark
+        run: node .github/scripts/shoot-web.mjs shots --dist dist
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: shots-web
+          path: shots/
+          retention-days: 14
+
+  # ---------------------------------------------------------------- android: emulator
+  android:
+    needs: detect
+    if: needs.detect.outputs.ui == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      # /android is gitignored, so the native project is generated here rather than committed.
+      - name: Prebuild
+        run: npx expo prebuild --platform android --no-install
+
+      - name: Build the debug APK
+        run: ./gradlew assembleDebug --no-daemon
+        working-directory: android
+
+      - name: Install Maestro
+        run: |
+          curl -fsSL "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+
+      # KVM has to be writable or the emulator falls back to software rendering and times out.
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Capture on an emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -noboot-anim
+          disable-animations: true
+          script: |
+            mkdir -p shots
+            adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+            maestro test -e APP_ID=com.example.mobilestandard -e OUT=shots/android-light .maestro/capture-launch.yaml
+            ls -l shots
+
+      - uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
+        with:
+          name: shots-android
+          path: shots/
+          retention-days: 14
+
+  # ---------------------------------------------------------------- ios: simulator
+  ios:
+    needs: detect
+    if: needs.detect.outputs.ui == 'true'
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      - name: Prebuild
+        run: npx expo prebuild --platform ios --no-install
+
+      - name: Pods
+        run: pod install
+        working-directory: ios
+
+      # `expo run:ios` builds and boots a simulator in one step. It is the slowest leg here and
+      # the first candidate to drop if runner minutes ever stop being free.
+      - name: Build and launch on a simulator
+        run: npx expo run:ios --configuration Debug --no-bundler
+        env:
+          EXPO_NO_TELEMETRY: 1
+
+      - name: Install Maestro
+        run: |
+          curl -fsSL "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+
+      - name: Capture
+        run: |
+          mkdir -p shots
+          maestro test -e APP_ID=com.example.mobilestandard -e OUT=shots/ios-light .maestro/capture-launch.yaml
+          ls -l shots
+
+      - uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
+        with:
+          name: shots-ios
+          path: shots/
+          retention-days: 14
+
+  # ---------------------------------------------------------------- publish into the PR body
+  publish:
+    needs: [detect, web, android, ios]
+    # `!cancelled()` rather than `success()`: three surfaces are worth publishing when the
+    # fourth fails, and the missing one becomes a named gap that `evidence` then fails on.
+    if: ${{ !cancelled() && needs.detect.outputs.ui == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # the evidence branch
+      pull-requests: write # the body
+    outputs:
+      published: ${{ steps.publish.outputs.published }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: shots-*
+          path: shots
+          merge-multiple: true
+
+      - run: ls -l shots || echo "no shots at all"
+
+      # gitleaks is the repo's secret scanner everywhere else; a PNG cannot be scanned for
+      # strings meaningfully, so what is checked instead is that nothing but PNGs is about to be
+      # committed to a public branch.
+      - name: Refuse anything that is not a PNG
+        run: |
+          BAD=$(find shots -type f ! -name '*.png' | head -20)
+          if [ -n "$BAD" ]; then echo "non-PNG files staged for a public branch:"; echo "$BAD"; exit 1; fi
+
+      - id: publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node .github/scripts/publish-evidence.mjs \
+            --pr "${{ github.event.pull_request.number }}" \
+            --sha "${{ github.event.pull_request.head.sha }}" \
+            --shots shots \
+            --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            | tee publish.log
+          echo "$(grep '^published=' publish.log | tail -1)" >> "$GITHUB_OUTPUT"
+
+  # ---------------------------------------------------------------- the check that gates merge
+  evidence:
+    needs: [detect, publish]
+    # ALWAYS runs and ALWAYS reports. A job skipped by `if:` reports no status, and a required
+    # context that never reports leaves the PR pending with nothing to click. Draft, fork and
+    # non-UI cases are decided inside check-evidence.mjs instead.
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - uses: actions/download-artifact@v7
+        if: ${{ needs.detect.outputs.ui == 'true' }}
+        with:
+          pattern: shots-*
+          path: shots
+          merge-multiple: true
+
+      - name: Decide
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node .github/scripts/check-evidence.mjs \
+            --pr "${{ github.event.pull_request.number }}" \
+            --sha "${{ github.event.pull_request.head.sha }}" \
+            --shots shots \
+            --published "${{ needs.publish.outputs.published }}"

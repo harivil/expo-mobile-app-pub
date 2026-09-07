@@ -56,7 +56,9 @@ module.exports = defineConfig([
     // Agent tooling: Node scripts that legitimately read the filesystem, spawn processes, and
     // print. Their regexes are reviewed and covered by hooks.test.mjs, so detect-unsafe-regex
     // is off here — it fires on every anchored alternation and teaches people to skip output.
-    files: [".claude/**/*.mjs"],
+    // `.github/scripts/**` is the same kind of code for the same reasons — CI tooling that
+    // reads files, shells out to `gh`, and prints for a workflow log to capture.
+    files: [".claude/**/*.mjs", ".github/scripts/**/*.mjs"],
     languageOptions: {
       globals: {
         process: "readonly",
