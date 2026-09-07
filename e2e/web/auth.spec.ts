@@ -19,7 +19,7 @@ test.describe("unauthenticated web app", () => {
     expect(response?.status()).toBe(200);
     await expect(page.getByTestId("login-screen")).toBeVisible();
     await expect(page.getByTestId("login-submit")).toBeVisible();
-    await expect(page.getByText("Sign in to continue")).toBeVisible();
+    await expect(page.getByText("Sign to continue to 10Xhealth app")).toBeVisible();
   });
 
   for (const route of PROTECTED_ROUTES) {

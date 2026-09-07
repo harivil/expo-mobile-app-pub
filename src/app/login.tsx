@@ -46,7 +46,7 @@ export default function LoginScreen() {
             style={styles.subheading}
             maxFontSizeMultiplier={2}
           >
-            Sign in to continue
+            Sign to continue to 10Xhealth app
           </ThemedText>
 
           {error && (
