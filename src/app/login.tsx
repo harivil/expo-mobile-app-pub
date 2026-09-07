@@ -90,9 +90,9 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.six,
   },
   wordmark: {
-    fontSize: 22,
+    fontSize: 28,
     fontWeight: "700",
-    lineHeight: 28,
+    lineHeight: 34,
   },
   wordmarkAccent: {
     color: Brand.blue,
