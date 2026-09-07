@@ -56,6 +56,13 @@ jobs:
         if: "!cancelled()"
         run: node .claude/scripts/version-check.mjs
 
+      # A config file nothing executes is worse than no config file: it reads like enforcement
+      # in review and accepts every violation. This checks the runner exists too, so the
+      # standard survives an agent leaving and a human picking the project up.
+      - name: Toolchain standards
+        if: "!cancelled()"
+        run: node .claude/scripts/toolchain-check.mjs
+
   # Web E2E needs no device, so it runs on every PR. Native E2E needs a built binary and a
   # real emulator — that lives in .eas/workflows/e2e.yml, where Maestro is a first-class job.
   web-e2e:

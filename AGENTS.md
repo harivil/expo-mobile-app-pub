@@ -44,6 +44,21 @@ Each stage commits an artifact the next one reads, under one kebab-case slug:
 | Review | findings on the PR             | [`REVIEW.md`](REVIEW.md)                                                       |
 | Ship   | a tag, and a build on a device | [`.claude/skills/release-app/`](.claude/skills/release-app/SKILL.md)           |
 
+Both this loop and the enforcement layers further down are drawn in **[`.archify/`](.archify/README.md)**
+— two self-contained HTML pages, sources beside them. That folder is where every diagram in this repo
+lives. A diagram that has drifted is worse than none, because it gets believed: when a stage, a guard
+or a testing layer changes, the diagram changes in the same PR.
+
+Verify and ship both run the checks CI runs, here, before pushing — same commands, tagged with the
+CI job each belongs to. A pull request that has been red four times stops being read:
+
+```bash
+node .claude/scripts/ci-local.mjs
+```
+
+[`preflight-ci`](.claude/skills/preflight-ci/SKILL.md) covers what maps to what, the four things no
+local run can prove, and how to triage each red check.
+
 ## Agent independence — why a reviewer does not read this file
 
 Three agents run inside the loop, and each is deliberately given a **different ground truth** from
@@ -144,19 +159,22 @@ PR.
 
 This repo's own skills, which carry what is specific to **this** app rather than to Expo:
 
-| Skill              | Owns                                                            |
-| ------------------ | --------------------------------------------------------------- |
-| `feature-loop`     | the whole loop; read it before the first file                   |
-| `design-system`    | tokens, states, component variants, contrast, native convention |
-| `scaffold-feature` | where a file goes and how it is written here                    |
-| `verify-app`       | proving a change works on all three surfaces, light and dark    |
-| `write-e2e`        | Maestro and Playwright flows, and selector discipline           |
-| `capture-evidence` | before/after screenshots for the PR                             |
-| `versioning`       | the four version numbers and which one you may touch            |
-| `release-app`      | EAS build, submit, TestFlight, the stores, OTA and rollback     |
-| `security-scan`    | the five static layers and how to triage a finding              |
-| `dast-scan`        | what the running app actually sends over the network            |
-| `manage-context`   | keeping a long session working, and handing one over            |
+| Skill                 | Owns                                                                 |
+| --------------------- | -------------------------------------------------------------------- |
+| `feature-loop`        | the whole loop; read it before the first file                        |
+| `design-system`       | tokens, states, component variants, contrast, native convention      |
+| `scaffold-feature`    | where a file goes and how it is written here                         |
+| `verify-app`          | proving a change works on all three surfaces, light and dark         |
+| `write-e2e`           | Maestro and Playwright flows, and selector discipline                |
+| `capture-evidence`    | before/after screenshots for the PR                                  |
+| `open-pr`             | pushing the branch and opening a PR whose body renders those         |
+| `versioning`          | the four version numbers and which one you may touch                 |
+| `release-app`         | EAS build, submit, TestFlight, the stores, OTA and rollback          |
+| `security-scan`       | the five static layers and how to triage a finding                   |
+| `dast-scan`           | what the running app actually sends over the network                 |
+| `preflight-ci`        | running CI's checks here, and triaging a red one                     |
+| `toolchain-standards` | Prettier, ESLint, husky, commitlint, lint-staged — and their runners |
+| `manage-context`      | keeping a long session working, and handing one over                 |
 
 The `references/` files under the scaffold skill cover the same ground independently, so a teammate
 who has not run any of the above still gets a working procedure.
@@ -294,6 +312,17 @@ node .claude/scripts/capture.mjs before <slug> --surfaces ios,android,web --reco
 [`capture-evidence`](.claude/skills/capture-evidence/SKILL.md) skill owns the detail. Captures land in
 `.evidence/`, which is gitignored — they attach to the PR rather than bloating the repo.
 
+Getting them into the PR is [`open-pr`](.claude/skills/open-pr/SKILL.md), which pushes the branch,
+opens the PR, and rewrites its body with the images rendered inline:
+
+```bash
+node .claude/skills/open-pr/scripts/open-pr.mjs <slug> --capture --what "one sentence"
+```
+
+It uploads through a browser because **GitHub has no public API for attaching an image** — the REST
+API can write the body but cannot host a PNG. One `--login` per machine covers that, and where the
+upload is not possible the skill prints the paths to drag rather than opening a PR with no evidence.
+
 Windows machines cannot capture iOS; there is no iOS simulator for Windows. The script reports that
 as a typed gap rather than failing, and the PR names who covers it. An unverified surface that is
 written down gets picked up; one that is merely implied ships broken.
@@ -310,25 +339,55 @@ fresh window, without the conversation.
 Most of this file is advisory. These are not — hooks in `.claude/settings.json` block them
 deterministically, on every session, for everyone:
 
-| Blocked                                                                                                       | Do this instead                                                           |
-| ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| `npm install` of an Expo or React Native package                                                              | `npx expo install <pkg>` — matches the SDK                                |
-| `git push --force`                                                                                            | `--force-with-lease`, which refuses when someone else has pushed          |
-| `git commit` while on `main`                                                                                  | branch, or `git worktree add ../work-<slug> -b <slug>`                    |
-| **Any push landing on `main` or `master`** — including `origin HEAD:main` from a feature branch               | push your branch, open a PR, merge it                                     |
-| Writing to `node_modules/`, `.expo/`, `android/`, `ios/`, `dist/`, `build/`, `coverage/`, `package-lock.json` | change the source or config that generates them                           |
-| **Starting a session at all**, when a plugin this repo declares is not installed for this directory           | `node .claude/scripts/setup.mjs`, then run the install commands it prints |
+| Blocked                                                                                                                                                                | Do this instead                                                                                               |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `npm install` of an Expo or React Native package                                                                                                                       | `npx expo install <pkg>` — matches the SDK                                                                    |
+| `git push --force`                                                                                                                                                     | `--force-with-lease`, which refuses when someone else has pushed                                              |
+| **Rewriting `main` in any spelling** — `--force-with-lease`, `+main` refspecs, `--delete`, `git branch -f/-D main`, `update-ref`, or a hard reset while standing on it | land work by merging a reviewed PR; undo with `git revert <sha>`, which is a new commit rather than a rewrite |
+| `git commit` while on `main`                                                                                                                                           | branch, or `git worktree add ../work-<slug> -b <slug>`                                                        |
+| **Any push landing on `main` or `master`** — including `origin HEAD:main` from a feature branch                                                                        | push your branch, open a PR, merge it                                                                         |
+| Writing to `node_modules/`, `.expo/`, `android/`, `ios/`, `dist/`, `build/`, `coverage/`, `package-lock.json`                                                          | change the source or config that generates them                                                               |
+| **Starting a session at all**, when a plugin this repo declares is not installed for this directory                                                                    | `node .claude/scripts/setup.mjs`, then run the install commands it prints                                     |
+| Editing `.claude/`, `AGENTS.md`, `CLAUDE.md`, `REVIEW.md` or `.husky/` — the rules that constrain every future change                                                  | `ALLOW_GOVERNANCE_EDIT=1 claude`, for a session whose whole purpose is changing them                          |
+| Opening a non-draft pull request before CI's checks have passed **here**, against this exact tree                                                                      | `node .claude/scripts/ci-local.mjs`, fix what it reports — or `gh pr create --draft`, which is never blocked  |
 
 Edited files are formatted automatically after each write, so style drift never reaches a diff.
+
+### Why editing the rules is itself guarded
+
+An agent that can quietly edit `AGENTS.md` can quietly widen its own permissions, and the reviewer is
+then checking the diff against instructions the diff changed. `guard-write` refuses those paths so the
+edit has to be intended rather than incidental — which is all it can honestly claim: the hook only sees
+the `Edit`, `Write` and `MultiEdit` tools, so a shell redirect goes around it, and a developer in their
+own editor never meets it at all. **The layer that holds is code-owner review**, and
+[`CODEOWNERS`](.github/CODEOWNERS) already names every path in that row — it bites once branch
+protection requires it, which is what `--team` does:
+
+```bash
+node .claude/scripts/protect-main.mjs --apply --team
+```
+
+The wiring is checked too. `settings.json` is what makes these hooks run, and deleting one block there
+used to leave every test green while the guard silently stopped firing. `node .claude/hooks/hooks.test.mjs`
+now asserts that each hook is wired to the right event, by `${CLAUDE_PROJECT_DIR}` rather than a relative
+path, and that no hook script exists unwired.
+
+Standards are checked the same way, in both halves. A config file nothing executes is worse than no
+config file: it reads like enforcement in review and accepts every violation.
+`node .claude/scripts/toolchain-check.mjs` asserts Prettier, ESLint, husky, commitlint and lint-staged
+are each installed _and_ wired to something that runs them, and the `verify` job runs it on every PR —
+see [`toolchain-standards`](.claude/skills/toolchain-standards/SKILL.md). Note its `--fix` writes the
+generic hook bodies, which would drop this repo's secret scan and its push-target check; read the diff
+before keeping it.
 
 Three more are enforced by **git hooks** rather than Claude Code hooks, which is what makes them
 apply to Codex, to a plain `git commit`, and to a human:
 
-| Blocked                                            | Where                                 |
-| -------------------------------------------------- | ------------------------------------- |
-| A commit message that is not a Conventional Commit | `.husky/commit-msg` → commitlint      |
-| A commit whose staged diff contains a secret       | `.husky/pre-commit` → gitleaks        |
-| A push that lands on `main` or `master`            | `.husky/pre-push` → check-push-target |
+| Blocked                                                                             | Where                                                  |
+| ----------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| A commit message that is not a Conventional Commit                                  | `.husky/commit-msg` → commitlint                       |
+| A commit whose staged diff contains a secret                                        | `.husky/pre-commit` → gitleaks                         |
+| A push that lands on `main` or `master`, and any force-push or delete **of** `main` | `.husky/pre-push` → check-push-target, then guard-push |
 
 Two of those have **one definition each, shared with the Claude Code hook** — the pattern to copy
 when adding a guard. `.claude/scripts/scan-staged.mjs` is called by both `.husky/pre-commit` and

@@ -1,0 +1,220 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Standards and Enforcement",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "escalation",
+        "label": "Advisory to unbypassable",
+        "focus": ["advisory", "client_guards", "ci", "protection"],
+        "note": "Four layers, each closing a hole the one before it leaves open."
+      },
+      {
+        "id": "what-verify-runs",
+        "label": "One command, same checks",
+        "focus": ["ci", "verify_gate", "testing", "security_layers"],
+        "note": "npm run verify runs what CI runs, and never reports green when a check could not run."
+      },
+      {
+        "id": "blocked-outright",
+        "label": "Blocked, not advised",
+        "focus": ["client_guards", "blocked", "protection", "push_rules"],
+        "note": "The rules that refuse an action rather than recommending against it."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "advisory",
+      "type": "external",
+      "label": "Advisory",
+      "sublabel": "nothing enforces it",
+      "tag": "AGENTS.md + 13 skills",
+      "pos": [40, 84],
+      "size": [190, 66]
+    },
+    {
+      "id": "client_guards",
+      "type": "security",
+      "label": "Client-side guards",
+      "sublabel": "--no-verify escapes both",
+      "tag": "session hooks + husky",
+      "pos": [258, 84],
+      "size": [190, 66]
+    },
+    {
+      "id": "ci",
+      "type": "cloud",
+      "label": "CI",
+      "sublabel": "no local state needed",
+      "tag": "every push and PR",
+      "pos": [476, 84],
+      "size": [190, 66]
+    },
+    {
+      "id": "protection",
+      "type": "security",
+      "label": "Branch protection",
+      "sublabel": "cannot be bypassed",
+      "tag": "GitHub, on main",
+      "pos": [694, 84],
+      "size": [190, 66]
+    },
+    {
+      "id": "conventions",
+      "type": "frontend",
+      "label": "How this app is written",
+      "sublabel": "tokens, placement, native feel",
+      "tag": "skills, not hooks",
+      "pos": [40, 222],
+      "size": [190, 88]
+    },
+    {
+      "id": "blocked",
+      "type": "database",
+      "label": "Refused outright",
+      "sublabel": "generated paths, the rules themselves",
+      "tag": "deliberate-only",
+      "pos": [258, 222],
+      "size": [190, 88]
+    },
+    {
+      "id": "verify_gate",
+      "type": "backend",
+      "label": "npm run verify",
+      "sublabel": "format, types, lint, tests",
+      "tag": "green / failed / incomplete",
+      "pos": [476, 222],
+      "size": [190, 88]
+    },
+    {
+      "id": "push_rules",
+      "type": "security",
+      "label": "main moves by merge",
+      "sublabel": "no direct push, no force",
+      "tag": "reviewed PR only",
+      "pos": [694, 222],
+      "size": [190, 88]
+    },
+    {
+      "id": "testing",
+      "type": "backend",
+      "label": "Testing layers",
+      "sublabel": "unit, functional, E2E, EAS",
+      "tag": "5 layers, 3 tools",
+      "pos": [367, 352],
+      "size": [190, 88]
+    },
+    {
+      "id": "security_layers",
+      "type": "security",
+      "label": "Security layers",
+      "sublabel": "lint, secrets, SAST, SCA, DAST",
+      "tag": "cumulative",
+      "pos": [585, 352],
+      "size": [190, 88]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Server side — no laptop can skip it",
+      "wraps": ["ci", "protection"]
+    }
+  ],
+  "connections": [
+    {
+      "id": "advice-to-guards",
+      "from": "advisory",
+      "to": "client_guards",
+      "variant": "dashed"
+    },
+    {
+      "id": "guards-to-ci",
+      "from": "client_guards",
+      "to": "ci",
+      "variant": "emphasis"
+    },
+    {
+      "id": "ci-to-protection",
+      "from": "ci",
+      "to": "protection",
+      "variant": "security"
+    },
+    {
+      "id": "advisory-owns",
+      "from": "advisory",
+      "to": "conventions",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "guards-block",
+      "from": "client_guards",
+      "to": "blocked",
+      "variant": "security",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "ci-runs",
+      "from": "ci",
+      "to": "verify_gate",
+      "label": "one command, same checks",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 26
+    },
+    {
+      "id": "protection-holds",
+      "from": "protection",
+      "to": "push_rules",
+      "variant": "security",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "verify-testing",
+      "from": "verify_gate",
+      "to": "testing",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "verify-security",
+      "from": "verify_gate",
+      "to": "security_layers",
+      "fromSide": "bottom",
+      "toSide": "top"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Advisory until it is not",
+      "items": [
+        "Most of AGENTS.md is advice; the blocked list is deterministic, on every session, for everyone",
+        "Two guards share one definition with their git hook, so a session and a bare git command cannot disagree"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Four layers, because each has a hole",
+      "items": [
+        "The commit guard checks the branch you stand on, which says nothing about where a push lands",
+        "Every local hook is escapable; branch protection is the only layer that holds, and it is not a file in this repo"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "What is standardised",
+      "items": [
+        "Testing: 5 layers, 3 tools — a route being reachable is an E2E question, never a unit one",
+        "Versions: 4 numbers, 4 owners — EAS owns the build numbers, fingerprint owns runtimeVersion"
+      ]
+    }
+  ]
+}

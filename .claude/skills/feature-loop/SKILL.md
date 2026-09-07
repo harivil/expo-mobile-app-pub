@@ -139,8 +139,14 @@ it added is covered by a flow.
 ## 5 · Verify
 
 Follow the **`verify-app`** skill: the repo's own checks, then the app running on every surface the
-spec claims, in light and dark. Capture the _after_ on the same surfaces and journeys as the
-baseline:
+spec claims, in light and dark. Run the checks CI will run _here_, not on the pull request — the
+**`preflight-ci`** skill covers what maps to what and what a local run cannot cover:
+
+```bash
+node .claude/scripts/ci-local.mjs
+```
+
+Capture the _after_ on the same surfaces and journeys as the baseline:
 
 ```bash
 node .claude/scripts/capture.mjs after <slug> --surfaces ios,android,web --record
@@ -151,8 +157,9 @@ Then dispatch the **`verifier`** agent. It works from the spec and the running a
 cannot fix anything, deliberately, so its verdict is not coloured by the assumptions that produced
 the code.
 
-**Gate:** every check green with its output read, every acceptance criterion from stage 2 observed to
-hold, and `verifier` reporting no behaviour that contradicts the plan.
+**Gate:** every check green with its output read — including `ci-local.mjs`, which is what makes
+the pull request green on the first push rather than the fourth — every acceptance criterion from
+stage 2 observed to hold, and `verifier` reporting no behaviour that contradicts the plan.
 
 ---
 
@@ -186,22 +193,9 @@ The PR carries **evidence, not assertion**:
 - A logic-only change says so explicitly and shows the test output or numbers that prove it.
 - Link the intent, spec and plan. Name anything in the diff the spec does not cover.
 
-Push the branch and open a PR. **`main` moves only by merging one** — a direct push is blocked
-both in-session and by `.husky/pre-push`, and by branch protection on the server, so there is no
-version of "just push it" that works. If a push is refused, that is the guard doing its job: open
-the PR.
-
-```bash
-git push -u origin <slug>
-```
-
-**Gate:** CI green, evidence attached, a code owner approved.
-[`CODEOWNERS`](../../../.github/CODEOWNERS) is what makes that last one enforceable rather
-than hoped for.
-
-Getting the merged change onto a device is its own procedure — versions first with
-[`versioning`](../versioning/SKILL.md), then build and submit with
-**[`release-app`](../release-app/SKILL.md)**. Merging is not shipping.
+**Gate:** CI green, evidence attached, a code owner approved. `guard-pr.mjs` holds this one: a
+pull request opens for review only once `ci-local.mjs` has passed against the code being
+reviewed. A draft is never blocked — sharing unfinished work is not what the gate is for.
 
 ---
 
