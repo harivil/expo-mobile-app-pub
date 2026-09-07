@@ -67,30 +67,39 @@ Each step leaves the repo working.
    `webVideo()` and `RECORD_SECONDS` from `capture.mjs` unchanged. Keep the richer status icon map
    from `capture.mjs`'s reporter — it distinguishes `manual` from `unavailable`, which the terse one
    does not. Verify: `--record` against the booted emulator produces `android.mp4`.
-2. **Fix the web path.** Resolve Playwright from the host project and invoke its CLI through
-   `process.execPath`, no shell:
+2. **Fix the web path.** Resolve Playwright from the host project and drive its **module API** in
+   process — no `npx`, no `.cmd`, no shell:
 
    ```js
-   // playwright/index.js is CommonJS; a dynamic import lands it under .default
+   // Playwright's package.json `exports` map does not expose "./cli.js", so
+   // req.resolve("playwright/cli.js") THROWS. Resolve the manifest and walk to its directory.
    const req = createRequire(join(process.cwd(), "package.json"));
-   let cli = null;
-   for (const p of [
-     "playwright/cli.js",
-     "@playwright/test/cli.js",
-     "playwright-core/cli.js",
-   ]) {
+   let root = null;
+   for (const pkg of ["playwright", "@playwright/test", "playwright-core"]) {
      try {
-       cli = req.resolve(p);
+       root = dirname(req.resolve(`${pkg}/package.json`));
        break;
      } catch {
        /* try the next one */
      }
    }
-   // then: run(process.execPath, [cli, "screenshot", ...])
+   // index.js is CommonJS; a dynamic import lands the exports under .default
+   const mod = await import(pathToFileURL(join(root, "index.js")).href);
+   const { chromium } = mod.default ?? mod;
    ```
 
    Keep the existing "playwright is not installed here" gap message for when none resolve. Verify:
    web capture succeeds on Windows with no hand-editing of the manifest.
+
+   > **Corrected 2026-09-07, measured on Windows 11 / Node v24.7.0.** This step originally
+   > proposed `req.resolve("playwright/cli.js")` invoked through `process.execPath`. That
+   > resolution throws `ERR_PACKAGE_PATH_NOT_EXPORTED` for all three package spellings, because
+   > the `exports` map does not publish the subpath. Resolving `<pkg>/package.json` and joining
+   > `index.js` works, and confirms `node node_modules/playwright/cli.js --version` → `1.62.1`
+   > was only ever reachable by full path. The **CLI route is abandoned entirely**: step 3 needs
+   > CSS injection, and `playwright screenshot --help` has no flag for it (it offers
+   > `--color-scheme`, `--viewport-size`, `--device`, `--wait-for-timeout`, and nothing for
+   > styles). The module API satisfies steps 2 and 3 together.
 
 3. **Hide the dev-server banner.** `#error-toast` is injected into `<body>` beside `#root` by the
    Expo dev server — dev chrome, not app UI, and absent from a production export. It covers the
@@ -157,6 +166,40 @@ children. That is a layout decision with a design owner, so it is noted and left
   workaround this repo already evaluated and demoted to opt-in `--host branch`. Its two rules worth
   having are taken in step 6 and already satisfied elsewhere (`open-pr.mjs` emits
   `<img width="320">` and never wraps evidence in `<details>`).
+
+## Status — measured 2026-09-07 on Windows 11, Node v24.7.0
+
+The diagnosis in this plan is confirmed, with one surprise: **the broken surface is web, not
+Android.** Running the script that actually executes today, `.claude/scripts/capture.mjs`, against a
+booted Pixel emulator and Metro on 8081:
+
+| Surface   | Today             | Why                                                                                                                                           |
+| --------- | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ios`     | `impossible-here` | correct, and needs no change                                                                                                                  |
+| `android` | **captured**      | `adb exec-out screencap` works on Windows; the PNG is the real login screen                                                                   |
+| `web`     | **`unavailable`** | reports "playwright not installed" while `@playwright/test` 1.62.1 _is_ installed — the message is wrong, the cause is the `npx` ENOENT above |
+
+Android's absence from PR #9 was a different fault, already recorded in that manifest: the app was
+wedged behind the splash overlay when the capture ran. Web's presence there was hand-work.
+
+Steps 1-3 and 6 are **written and verified** out of tree, because every destination path is refused
+by `guard-write`. Both phases, all three surfaces, from the repo root:
+
+```
+ n/a   ios/screenshot: the iOS simulator only exists on macOS — ...
+  ok   android/screenshot:   .evidence\<slug>\before\android.png
+  ok   web-light/screenshot: .evidence\<slug>\before\web-light.png
+  ok   web-dark/screenshot:  .evidence\<slug>\before\web-dark.png
+```
+
+No hand-edited manifest. Both web PNGs were opened and checked: the Login button is unobscured, and
+the dark one is genuinely dark. `open-pr.mjs --dry-run` then rendered all four rows — three images
+each for before and after, iOS named as the one unverified surface.
+
+**Known limitation this does not fix.** `open-pr.mjs`'s `evidenceTable()` selects with `.find()`,
+one shot per `(surface, phase)`. One file per surface — what the new script emits — loses nothing,
+but a folder whose files all map to a single surface shows one and silently drops the rest. See the
+twelve `web-*.png` in `.evidence/counter-screen/after/`. Worth its own intent.
 
 ## Proof
 
