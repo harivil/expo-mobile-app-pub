@@ -1,0 +1,25 @@
+# Capture: launch the app and photograph its first screen.
+#
+# Used by .github/workflows/screenshots.yml for the iOS and Android legs. Maestro is what makes
+# the two native surfaces answerable the same way: it speaks the accessibility tree on both, so
+# `login-screen` (a React Native testID → accessibilityIdentifier on iOS, resource-id on
+# Android) is the readiness signal rather than a sleep.
+#
+# That matters more than it looks. src/components/animated-icon.tsx holds a splash overlay for
+# 600ms after launch; a fixed wait photographs the splash and every check still passes, which is
+# the most likely way this whole feature ships working and useless.
+#
+# Run:  maestro test -e APP_ID=<bundle id> -e OUT=<path without extension> .maestro/capture-launch.yaml
+
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: true
+
+# No session in a fresh emulator or simulator, so the auth guard in src/app/_layout.tsx resolves
+# to the login route. Asserting it is both the readiness signal and a real assertion: if the app
+# boots to something else, the capture fails rather than quietly photographing it.
+- assertVisible:
+    id: "login-screen"
+
+- takeScreenshot: ${OUT}

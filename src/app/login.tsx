@@ -35,6 +35,15 @@ export default function LoginScreen() {
             10x{" "}
             <ThemedText style={[styles.wordmark, styles.wordmarkAccent]}>Health</ThemedText>
           </ThemedText>
+          <ThemedText
+            testID="login-tagline"
+            type="small"
+            themeColor="textSecondary"
+            style={styles.tagline}
+            maxFontSizeMultiplier={2}
+          >
+            A new way to track your wellbeing
+          </ThemedText>
         </ThemedView>
 
         <ThemedView style={styles.formSection}>
@@ -96,6 +105,10 @@ const styles = StyleSheet.create({
   },
   wordmarkAccent: {
     color: Brand.blue,
+  },
+  tagline: {
+    marginTop: Spacing.two,
+    textAlign: "center",
   },
   formSection: {
     gap: Spacing.four,
